@@ -20,6 +20,7 @@ import Types exposing (..)
 import Coders exposing (..)
 import Tree exposing (update, viewColumn, blankTree)
 import TreeUtils exposing (..)
+import CommitGraph
 
 
 main : Program Json.Value
