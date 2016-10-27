@@ -8,6 +8,7 @@ import Html.Events exposing (..)
 import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2)
 import String
+import Dict exposing (Dict)
 import Json.Encode
 import Json.Decode as Json
 import Dom
@@ -17,7 +18,8 @@ import List.Extra as ListExtra
 
 import Sha1 exposing (timestamp)
 import Types exposing (..)
-import Trees exposing (update, view)
+import Trees
+import TreeUtils exposing (..)
 
 
 main : Program Json.Value
@@ -39,8 +41,8 @@ port export : Json.Encode.Value -> Cmd msg
 
 
 type alias Model =
-  { contents : List Content
-  , nodes : List Node
+  { contents : Dict String Content
+  , nodes : Dict String Node
   , trees : List Tree
   , viewState : ViewState
   }
@@ -48,8 +50,8 @@ type alias Model =
 
 defaultModel : Model
 defaultModel =
-  { contents = [defaultContent]
-  , nodes = [defaultNode]
+  { contents = Dict.fromList [("defaultContentId", defaultContent)]
+  , nodes = Dict.fromList [("defaultNodeId", defaultNode)]
   , trees = [Trees.defaultTree]
   , viewState = 
       { active = "0"
@@ -86,7 +88,46 @@ update msg model =
         | viewState = { vs | active = id }
       }
         ! [activateCards [[id]]]
-      
+
+    -- === Card Editing ===
+
+    OpenCard id str ->
+      { model
+        | viewState = 
+            { vs 
+              | editing = Just id
+              , field = str
+            }
+      }
+        ! [focus id]
+
+    UpdateField str ->
+      { model
+        | viewState = { vs | field = str }
+      }
+        ! []
+
+    UpdateCard id str ->
+      let
+        node_ = Dict.get id model.nodes
+        parentId_ = node_ ? defaultNode |> .parentId
+        prevSiblingId_ = getPrevId id model.trees
+        nextSiblingId_ = getNextId id model.trees
+
+        -- get position of prev | minInt
+        -- get position of next | maxInt
+        -- newPosition = nextPos / 2 + prevPos / 2
+
+        ops = []
+      in
+      if node_ == Nothing then
+        model ! []
+      else
+        { model
+          | trees = Trees.applyOperations ops model.trees
+        }
+          ! []
+
 
     -- === External Inputs ===
 

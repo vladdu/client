@@ -10,7 +10,7 @@ import Json.Decode as Json
 import Markdown
 
 import Types exposing (..)
-import TreeUtils exposing (getColumns)
+import TreeUtils exposing (..)
 
 
 
@@ -34,35 +34,28 @@ type TreeMsg
   | Apply Op
 
 
-update : TreeMsg -> Tree -> Tree
-update msg tree =
-  let
-    children =
-      case tree.children of
-        Children trees -> trees
-
-  in
+update : TreeMsg -> List Tree -> List Tree
+update msg trees =
   case msg of
-    NoOp -> tree
+    NoOp -> trees
 
     Apply op ->
       case op of
         Ins id content parentId_ position updated ->
-          tree
+          trees
 
         Del id ->
-          tree
+          trees
 
 
+applyOperations : List Op -> List Tree -> List Tree
+applyOperations ops trees =
+  List.foldl applyOp trees ops
 
-applyOperations : List Op -> Tree -> Tree
-applyOperations ops tree =
-  List.foldl applyOp tree ops
 
-
-applyOp : Op -> Tree -> Tree
-applyOp op tree =
-  update (Apply op) tree
+applyOp : Op -> List Tree -> List Tree
+applyOp op trees =
+  update (Apply op) trees
 
 
 

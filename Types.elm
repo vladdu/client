@@ -36,14 +36,12 @@ type Msg
 -- OBJECTS
 
 type alias Content =
-  { id : String
-  , contentType : String
+  { contentType : String
   , content : String
   }
 
 type alias Node =
-  { id : String
-  , contentId : String
+  { contentId : String
   , parentId: Maybe String
   , position: Int
   }
@@ -87,18 +85,24 @@ type alias Column = List (List Tree)
 
 defaultContent : Content
 defaultContent =
-  { id = -- sha1(contentType+"\n"+content)
-      "5960f096212e449474d2eb1f8f4e33495d0a53aa" 
-  , contentType = "text/markdown" 
+  { contentType = "text/markdown" 
   , content = "fromDefault"
   }
 
 defaultNode : Node
 defaultNode =
-  { id = -- sha1(contentId+"\n"+childrenIds.join("\n")
-      "1331dfaaa7dc267a902e4a9aa0e9d97130fabc4c" 
-  , contentId = defaultContent.id
+  { contentId = "defaultContentId" 
   , parentId = Nothing
   , position = 0
   }
 
+
+
+
+-- CONSTANTS
+
+maxInt : Int
+maxInt = 9007199254740991
+
+minInt : Int
+minInt = -maxInt

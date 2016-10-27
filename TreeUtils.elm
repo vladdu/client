@@ -32,13 +32,46 @@ getColumns cols =
 
 
 
--- ACCESSORS
+-- SINGLE TREE ACCESSORS
 
 getChildren : Tree -> List Tree
 getChildren x =
   case x.children of
     Children c ->
       c
+
+
+
+
+-- GLOBAL ACCESSORS
+
+getGroup : String -> List Tree -> List Tree
+getGroup id trees =
+  let
+    isMember =
+      trees
+        |> List.map .id
+        |> List.member id
+
+    children =
+      trees -- List Tree
+        |> List.concatMap getChildren -- List Tree
+  in
+  if isMember then
+    trees
+  else
+    getGroup id children
+
+
+
+getPrevId : String -> List Tree -> Maybe String
+getPrevId id trees =
+  Nothing
+
+
+getNextId : String -> List Tree -> Maybe String
+getNextId id trees =
+  Nothing
 
 
 
