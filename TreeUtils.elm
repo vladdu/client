@@ -1,6 +1,7 @@
 module TreeUtils exposing (..)
 
 import String
+import Dict exposing (Dict)
 import List.Extra as ListExtra
 import Types exposing (..)
 import Sha1
@@ -277,3 +278,11 @@ newLine : String
 newLine =
   String.fromList ['\n']
 
+keyMouseRatio : Dict String (Int, Int) -> String -> Float
+keyMouseRatio stats cmd =
+  case (Dict.get cmd stats) of
+    Just (a, b) ->
+      (toFloat a)/(toFloat b)
+
+    Nothing ->
+      0.0

@@ -1,5 +1,6 @@
 module Types exposing (..)
 
+import Dict exposing (Dict)
 import Json.Decode as Json
 
 
@@ -36,6 +37,9 @@ type Msg
     | Undo
     | Redo
     | AddToUndo Tree
+    -- === Stats ===
+    | Keyboard Msg
+    | Mouse Msg
     -- === Ports ===
     | SaveTemp
     | Confirm String String String
@@ -59,6 +63,7 @@ type alias ViewState =
   , descendants : List String
   , editing : Maybe String
   , field : String
+  , stats : Dict String (Int, Int)
   }
 
 

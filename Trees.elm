@@ -230,6 +230,17 @@ viewCard vstate depth tree =
         ]
         []
 
+    saveKMRatio =
+      keyMouseRatio vstate.stats "SaveCard"
+
+    saveText =
+      if saveKMRatio == 0.0 then
+        "Save (Ctrl+Enter) ✔"
+      else if saveKMRatio <= 0.5 then
+        "Ctrl + Enter ✔"
+      else
+        "✔"
+
     buttons =
       case (isEditing, isActive, isRoot) of
         ( False, True, False ) ->
@@ -257,7 +268,7 @@ viewCard vstate depth tree =
                 , span 
                   [ class "card-btn edit"
                   , title "Edit Card (Enter)"
-                  , onClick (OpenCard tree.id tree.content)
+                  , onClick (Mouse (OpenCard tree.id tree.content))
                   ]
                   []
                 ]
@@ -293,9 +304,9 @@ viewCard vstate depth tree =
                 [ span 
                   [ class "card-btn save"
                   , title "Save Changes (Ctrl+Enter)"
-                  , onClick (UpdateCard tree.id vstate.field)
+                  , onClick (Mouse SaveCard)
                   ]
-                  []
+                  [text saveText] 
                 ]
           ]
 

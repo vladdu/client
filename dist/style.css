@@ -365,7 +365,6 @@ pre {
 /* --- Icons --- */
 
 .card-btn.edit,
-.card-btn.save,
 .card-btn.cancel,
 .card-btn.delete {
   font-family: 'Glyphicons Halflings';
@@ -373,9 +372,6 @@ pre {
 }
 .card-btn.edit::before {
   content: "\270f";
-}
-.card-btn.save::before {
-  content: "\e013";
 }
 .card-btn.cancel::before {
   content: "\e090";
@@ -507,11 +503,9 @@ pre {
 }
 
 .card-btn.save {
-  bottom: 0;
-  right: 0;
-  width: 25px;
-  height: 25px;
-  line-height: 25px;
+  font-family: "Open Sans";
+  bottom: 8px;
+  right: 8px;
   border: none;
   color: hsl(180, 0%, 20%);
 }

@@ -5,6 +5,7 @@ import Json.Encode
 import Json.Decode as Json exposing (..)
 import Array exposing (fromList)
 import String
+import Dict exposing (Dict)
 import TreeUtils exposing (newLine)
 
 
@@ -101,15 +102,15 @@ treeDecoder =
 
 viewStateDecoder : Decoder ViewState
 viewStateDecoder =
-  Json.object6 ViewState
+  Json.object7 ViewState
     ("active" := string)
     ("activePast" := list string)
     ("activeFuture" := list string)
     ("descendants" := list string)
     ( maybe ("editing" := string))
     ("field" := string)
-    
-  
+    ("stats" := dict (tuple2 (,) int int))
+
 
 
 

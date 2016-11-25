@@ -8,6 +8,7 @@ import Html.Events exposing (..)
 import Html.Keyed as Keyed
 import Html.Lazy exposing (lazy, lazy2)
 import String
+import Dict exposing (Dict)
 import Json.Encode
 import Json.Decode as Json
 import Dom
@@ -60,6 +61,7 @@ defaultModel =
       , descendants = []
       , editing = Just "0"
       , field = ""
+      , stats = Dict.empty
       }
   , nextId = 1
   , saved = True
@@ -512,6 +514,65 @@ update msg model =
           ! [ message ("undo-state-change", modelToValue newModel) ]
 
 
+    -- === Stats ===
+
+    Keyboard msg ->
+      let
+        key =
+          toString msg
+            |> String.split " "
+            |> List.head
+            |> Maybe.withDefault "KeyboardTagError"
+
+        incStat : Maybe (Int, Int) -> Maybe (Int, Int)
+        incStat tup_ =
+          case tup_ of
+            Just (a, b) ->
+              Just (a+1, b+1)
+
+            Nothing -> Nothing
+
+        newStats =
+          if Dict.member key vs.stats then
+            Dict.update key incStat vs.stats
+          else
+            Dict.insert key (1, 1) vs.stats
+      in
+        { model
+          | viewState = { vs | stats = newStats }
+        }
+          ! []
+            |> andThen msg
+
+    Mouse msg ->
+      let
+        key =
+          toString msg
+            |> String.split " "
+            |> List.head
+            |> Maybe.withDefault "MouseTagError"
+
+        incStat : Maybe (Int, Int) -> Maybe (Int, Int)
+        incStat tup_ =
+          case tup_ of
+            Just (a, b) ->
+              Just (a, b+1)
+
+            Nothing -> Nothing
+
+        newStats =
+          if Dict.member key vs.stats then
+            Dict.update key incStat vs.stats
+          else
+            Dict.insert key (0, 1) vs.stats
+      in
+        { model
+          | viewState = { vs | stats = newStats }
+        }
+          ! []
+            |> andThen msg
+
+
     -- === Ports ===
 
     SaveTemp ->
@@ -569,11 +630,11 @@ update msg model =
 
         "mod+enter" ->
           editMode model
-            (\_ -> SaveCard)
+            (\_ -> Keyboard SaveCard)
 
         "enter" ->
           normalMode model
-            (OpenCard vs.active (getContent vs.active model.tree))
+            (Keyboard (OpenCard vs.active (getContent vs.active model.tree)))
 
         "esc" ->
           case vs.editing of
