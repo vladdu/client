@@ -233,10 +233,21 @@ viewCard vstate depth tree =
     saveKMRatio =
       keyMouseRatio vstate.stats "SaveCard"
 
+    openKMRatio =
+      keyMouseRatio vstate.stats "OpenCard"
+
     saveText =
       if saveKMRatio == 0.0 then
         "Save (Ctrl+Enter) ✔"
       else if saveKMRatio <= 0.5 then
+        "Ctrl + Enter ✔"
+      else
+        "✔"
+
+    editText =
+      if openKMRatio == 0.0 then
+        "Save (Ctrl+Enter) ✔"
+      else if openKMRatio <= 0.5 then
         "Ctrl + Enter ✔"
       else
         "✔"
