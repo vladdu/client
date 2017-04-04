@@ -20,6 +20,8 @@ type alias Model =
   { tree : Tree
   , columns : List Column
   , nodes : Dict String TreeNode
+  , vertices : Dict String Vertex
+  , edges : Dict String Edge
   }
 
 
@@ -28,6 +30,8 @@ defaultModel =
   { tree = defaultTree
   , columns = getColumns [[[defaultTree]]]
   , nodes = Dict.fromList [("0", TreeNode "" [] Nothing False)]
+  , vertices = Dict.fromList[("0", Vertex "")]
+  , edges = Dict.empty
   }
 
 

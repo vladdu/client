@@ -76,6 +76,17 @@ type alias TreeNode =
   }
 
 
+type alias Vertex =
+  { content : String
+  }
+
+
+type alias Edge =
+  { from : String
+  , to : String
+  }
+
+
 type Children = Children (List Tree)
 type alias Group = List Tree
 type alias Column = List (List Tree)

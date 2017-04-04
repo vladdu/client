@@ -131,7 +131,7 @@ initNodes nodeJson =
         Ok newTree ->
           { defaultModel
             | data =
-              Trees.Model newTree [] Dict.empty
+              Trees.Model newTree [] Dict.empty Dict.empty Dict.empty
                 |> Trees.updateData
           }
             ! []
@@ -517,52 +517,10 @@ update msg model =
     -- === History ===
 
     Undo ->
-      let
-        prevTree_ = List.head model.treePast
-      in
-      case prevTree_ of
-        Just prevTree ->
-          let
-            newModel =
-              { model
-                | data =
-                    { tree = prevTree
-                    , columns = getColumns [[[ prevTree]]]
-                    , nodes = getNodes prevTree
-                    }
-                , treePast = List.drop 1 model.treePast
-                , treeFuture = model.data.tree :: model.treeFuture
-              }
-          in
-          newModel
-            ! [ message ("undo-state-change", modelToValue newModel) ]
-
-        Nothing ->
-          model ! []
+      model ! []
 
     Redo ->
-      let
-        nextTree_ = List.head model.treeFuture
-      in
-      case nextTree_ of
-        Just nextTree ->
-          let
-            newModel =
-              { model
-                | data =
-                    { tree = nextTree
-                    , columns = getColumns [[[ nextTree ]]]
-                    , nodes = Dict.empty
-                    }
-                , treePast = model.data.tree :: model.treePast
-                , treeFuture = List.drop 1 model.treeFuture
-              }
-          in
-          newModel
-            ! [ message ("undo-state-change", modelToValue newModel) ]
-
-        Nothing ->
-          model ! []
+      model ! []
 
     AddToUndo oldTree ->
       if oldTree /= model.data.tree then

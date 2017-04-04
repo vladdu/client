@@ -108,9 +108,11 @@ modelDecoder =
 
 treesModelDecoder : Decoder Trees.Model
 treesModelDecoder =
-  Json.map3 Trees.Model
+  Json.map5 Trees.Model
     treeDecoder
     (succeed [])
+    (succeed Dict.empty)
+    (succeed Dict.empty)
     (succeed Dict.empty)
 
 
