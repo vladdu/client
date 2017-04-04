@@ -124,8 +124,19 @@ initNodes nodeJson =
   case Json.decodeValue nodesDecoder nodeJson of
     Ok nodes ->
       let
+        vertices =
+          [ ("0", Vertex "test vertex")
+          , ("1", Vertex "child")
+          ]
+            |> Dict.fromList
+
+        edges =
+          [ ("e0", Edge "0" "1")
+          ]
+            |> Dict.fromList
+
         newTree_ =
-          nodesToTree nodes "0"
+          buildTree vertices edges "0" |> Ok
       in
       case newTree_ of
         Ok newTree ->

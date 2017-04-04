@@ -333,6 +333,40 @@ nodeToTree id treeNode =
 
 
 
+-- GRAPH TRANSFORMATIONS
+
+buildTree : Dict String Vertex -> Dict String Edge -> String -> Tree
+buildTree vertices edges rootId =
+  case (Dict.get rootId vertices) of
+    Just vertex ->
+      let
+        mapFn (id, mbv) =
+          case mbv of
+            Just v ->
+              Just (Tree id v.content (Children []) Nothing False)
+
+            Nothing -> Nothing
+
+
+        children =
+          edges
+            |> Dict.filter (\id e -> e.from == rootId) -- Dict String Edge
+            |> Dict.map (\id e -> Dict.get e.to vertices) -- Dict String (Maybe Vertex)
+            |> Dict.toList --List (String, Maybe Vertex)
+            |> List.filterMap mapFn
+            |> Children
+            |> Debug.log "children"
+
+      in
+      Tree rootId vertex.content children Nothing False
+
+    Nothing ->
+      Tree rootId "buildTree Nothing" (Children []) Nothing False
+
+
+
+
+
 -- SPECIAL PROPERTIES
 
 centerlineIds : List (List String) -> List String -> List String -> List (List String)
