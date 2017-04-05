@@ -68,6 +68,9 @@ type TreeMsg
   | Node String TreeNode
   | Edg String Edge
   | Vert String Vertex
+  | GIns String String Vertex
+  | GDel String
+  | GUpd String String
 
 
 update : TreeMsg -> Model -> Model
@@ -121,26 +124,20 @@ update msg model =
 
     _ ->
       let
+        (newVertices, newEdges) =
+          updateGraph msg (model.vertices, model.edges)
+
         newTree =
-          updateTree msg model.tree
+          if newVertices /= model.vertices || newEdges /= model.edges then
+            buildTree newVertices newEdges "0"
+          else
+            model.tree
 
         newColumns =
           if newTree /= model.tree then
             getColumns [[[newTree]]]
           else
             model.columns
-
-        newVertices =
-          if newTree /= model.tree then
-            getVertices newTree
-          else
-            model.vertices
-
-        newEdges =
-          if newTree /= model.tree then
-            getEdges model.edges newTree
-          else
-            model.edges
       in
       { model
         | tree = newTree
@@ -190,6 +187,43 @@ updateTree msg tree =
 
     _ ->
       tree
+
+
+updateGraph : TreeMsg -> (Dict String Vertex, Dict String Edge) -> (Dict String Vertex, Dict String Edge)
+updateGraph msg (vertices, edges) =
+  case msg of
+    NoOp -> (vertices, edges)
+
+    GIns id pid vert ->
+      let
+        newVertices =
+          Dict.insert id vert vertices
+
+        newEdges =
+          if Dict.member (edgeId pid id) edges then
+            edges
+          else
+            Dict.insert (edgeId pid id) (Edge Nothing pid id) edges
+      in
+      ( newVertices, newEdges ) 
+
+    GDel id ->
+      (vertices, edges)
+
+    GUpd id str ->
+      let
+        updFn vert_ =
+          case vert_ of
+            Just vert ->
+              Just { vert | content = str }
+
+            Nothing -> Nothing
+      in
+      ( Dict.update id updFn vertices, edges)
+
+    _ ->
+      (vertices, edges)
+
 
 
 apply : List TreeMsg -> Tree -> Tree

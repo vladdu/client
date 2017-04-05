@@ -391,6 +391,9 @@ getEdges edges tree =
     |> Dict.fromList
 
 
+edgeId : String -> String -> String
+edgeId from to =
+  ["edge", from, to] |> String.join "-"
 
 
 

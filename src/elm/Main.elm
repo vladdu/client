@@ -344,7 +344,7 @@ update msg model =
 
     UpdateCard (id, str) ->
       { model
-        | data = Trees.update (Trees.Upd id str) model.data
+        | data = Trees.update (Trees.GUpd id str) model.data
         , viewState = { vs | active = id, editing = Nothing }
       }
         ! [] 
@@ -399,9 +399,10 @@ update msg model =
     Insert subtree pid idx ->
       let
         newId = subtree.id
+        -- id pid vertex
       in
       { model
-        | data = Trees.update (Trees.Ins subtree pid idx) model.data
+        | data = Trees.update (Trees.GIns newId pid (Vertex Nothing subtree.content)) model.data
       }
         ! []
         |> andThen (OpenCard newId subtree.content)
@@ -630,7 +631,7 @@ update msg model =
             | saved = False
           }
       in
-      newModel ! [ message ("save-temp", modelToValue newModel) ]
+      newModel ! []--[ message ("save-temp", modelToValue newModel) ]
 
     -- === Ports ===
 
