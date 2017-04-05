@@ -14,7 +14,7 @@ import Types exposing (..)
 import Trees exposing (update, view, defaultTree, blankTree)
 import TreeUtils exposing (..)
 import Sha1 exposing (..)
-import Coders exposing (modelDecoder, nodesDecoder, treeNodeDecoder, modelToValue)
+import Coders exposing (modelDecoder, verticesDecoder, edgesDecoder, nodesDecoder, treeNodeDecoder, modelToValue)
 
 
 main : Program Json.Value Model Msg
@@ -125,13 +125,15 @@ initNodes nodeJson =
     Ok nodes ->
       let
         vertices =
-          [ ("0", Vertex "test vertex")
-          , ("1", Vertex "child")
+          [ ("0", Vertex Nothing "test vertex")
+          , ("1", Vertex Nothing "child")
+          , ("2", Vertex Nothing "child 2")
           ]
             |> Dict.fromList
 
         edges =
-          [ ("e0", Edge "0" "1")
+          [ ("01", Edge Nothing "0" "1")
+          , ("02", Edge Nothing "0" "2")
           ]
             |> Dict.fromList
 
@@ -156,6 +158,42 @@ initNodes nodeJson =
         _ = Debug.log "nodes err" err
       in
       defaultModel ! []
+
+
+initGraph : Json.Value -> Json.Value -> (Model, Cmd Msg)
+initGraph verticesJson edgesJson =
+  let
+    vertexValue =
+      Json.decodeValue verticesDecoder verticesJson
+
+    edgeValue =
+      Json.decodeValue edgesDecoder edgesJson
+  in
+  case (vertexValue, edgeValue) of
+    (Ok vertices, Ok edges) ->
+      let
+        newTree_ =
+          buildTree vertices edges "0" |> Ok
+      in
+      case newTree_ of
+        Ok newTree ->
+          { defaultModel
+            | data =
+              Trees.Model newTree [] Dict.empty Dict.empty Dict.empty
+                |> Trees.updateData
+          }
+            ! []
+
+        Err err ->
+          let _ = Debug.log "err" err in
+          defaultModel ! []
+
+    (_, _) ->
+      let
+        _ = Debug.log "initGraph error" "some error"
+      in
+      defaultModel ! []
+
 
 
 
@@ -649,6 +687,9 @@ update msg model =
     NodesIn json ->
       initNodes json
 
+    GraphIn (vertsJson, edgesJson) ->
+      initGraph vertsJson edgesJson
+
     ChangeIn (id, json) ->
       let
         treeNode_ =
@@ -671,10 +712,11 @@ update msg model =
       in
       case str of
         "mod+x" ->
-          let
-            db1 = Debug.log "model" model
-          in
-          model ! []
+          { model
+            | data = Trees.updateData model.data
+                |> Debug.log "updatedData"
+          } 
+            ! []
 
         "mod+s" ->
           update AttemptSave model
@@ -822,6 +864,7 @@ port updateSuccess : ((String, String) -> msg) -> Sub msg
 port updateError : (String -> msg) -> Sub msg
 port data : (Json.Value -> msg) -> Sub msg
 port nodes : (Json.Value -> msg) -> Sub msg
+port graph : ((Json.Value, Json.Value) -> msg) -> Sub msg
 port change : ((String, Json.Value) -> msg) -> Sub msg
 
 
@@ -833,6 +876,7 @@ subscriptions model =
     , updateError UpdateCardError
     , data DataIn
     , nodes NodesIn
+    , graph GraphIn
     , change ChangeIn
     ]
 

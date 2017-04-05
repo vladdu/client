@@ -358,10 +358,36 @@ buildTree vertices edges rootId =
             |> Debug.log "children"
 
       in
-      Tree rootId vertex.content children Nothing False
+      Tree rootId vertex.content children vertex.rev False
 
     Nothing ->
       Tree rootId "buildTree Nothing" (Children []) Nothing False
+
+
+getVertices : Tree -> Dict String Vertex
+getVertices tree =
+  let
+    allTrees =
+      tree :: (getDescendants tree)
+  in
+  allTrees
+    |> List.map (\t -> (t.id, Vertex t.rev t.content)) -- List (String, Vertex)
+    |> Dict.fromList
+
+
+getEdges : Tree -> Dict String Edge
+getEdges tree =
+  let
+    allTrees =
+      tree :: (getDescendants tree)
+
+    childToEdge t c =
+      (t.id ++ c.id, Edge c.rev t.id c.id)
+  in
+  allTrees
+    |> List.concatMap (\t -> getChildren t |> List.map (childToEdge t))
+    |> Dict.fromList
+
 
 
 

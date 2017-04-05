@@ -30,7 +30,7 @@ defaultModel =
   { tree = defaultTree
   , columns = getColumns [[[defaultTree]]]
   , nodes = Dict.fromList [("0", TreeNode "" [] Nothing False)]
-  , vertices = Dict.fromList[("0", Vertex "")]
+  , vertices = Dict.fromList[("0", Vertex Nothing "")]
   , edges = Dict.empty
   }
 
@@ -131,6 +131,8 @@ updateData model =
   { model
     | columns = getColumns [[[ model.tree ]]]
     , nodes = getNodes model.tree
+    , vertices = getVertices model.tree
+    , edges = getEdges model.tree
   }
 
 

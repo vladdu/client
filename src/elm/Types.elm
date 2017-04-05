@@ -50,6 +50,7 @@ type Msg
     | Confirm String String String
     | DataIn Json.Value
     | NodesIn Json.Value
+    | GraphIn (Json.Value, Json.Value)
     | ChangeIn (String, Json.Value)
     | ExternalCommand (String, String)
     | HandleKey String
@@ -77,12 +78,14 @@ type alias TreeNode =
 
 
 type alias Vertex =
-  { content : String
+  { rev : Maybe String
+  , content : String
   }
 
 
 type alias Edge =
-  { from : String
+  { rev : Maybe String
+  , from : String
   , to : String
   }
 

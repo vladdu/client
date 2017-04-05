@@ -4,7 +4,8 @@ const _ = require('lodash')
 /* ===== Database ===== */
 
 function saveModel(db, model) {
-  var data = nodesToRows(model.nodes)
+  var data = graphToRows(model.vertices, model.edges)
+  console.log(data)
 
   db.allDocs({
     include_docs: true
@@ -35,7 +36,10 @@ function loadModel(db, callback) {
   db.allDocs({
     include_docs: true
   }).then(function (result) {
-    callback(rowsToNodes(result.rows))
+    console.log('result', result)
+    var toSend = rowsToGraph(result.rows)
+    console.log('tosend', toSend)
+    callback(toSend)
   }).catch(function (err) {
     console.log(err)
   })
@@ -64,6 +68,64 @@ function nodesToRows(nodes) {
 
   return rows
 }
+
+/* =========== Graph Database ============== */
+
+function graphToRows(vertices, edges) {
+  console.log('vertices', vertices)
+  console.log('edges', edges)
+  var vertRows = Object.keys(vertices).map(function(key) {
+    return  { "_id": key
+            , "_rev": vertices[key].rev
+            , "type": "vertex"
+            , "content": vertices[key].content
+            }
+  })
+
+  var edgeRows = Object.keys(edges).map(function(key) {
+    return  { "_id": key
+            , "_rev": edges[key].rev
+            , "type": "edge"
+            , "from": edges[key].from
+            , "to": edges[key].to
+            }
+  })
+
+  return vertRows.concat(edgeRows)
+}
+
+
+function rowsToGraph(rows) {
+  var vertices = rows
+      .filter(function(r) {return r.doc.type == 'vertex'})
+      .reduce(function(map, obj) {
+        map[obj.doc._id] =
+          { rev: obj.doc._rev
+          , content: obj.doc.content
+          }
+        return map
+      }, {})
+
+  var edges = rows
+      .filter(function(r) {return r.doc.type == 'edge'})
+      .reduce(function(map, obj) {
+        map[obj.doc._id] =
+          { rev: obj.doc._rev
+          , content: obj.doc.content
+          }
+        return map
+      }, {})
+
+  console.log('vertices', vertices)
+  console.log('edges', edges)
+
+  return [vertices, edges]
+}
+
+
+
+
+/* =========== Graph Database ============== */
 
 function onChange(change) {
   var db = this.db

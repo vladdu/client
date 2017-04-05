@@ -24,7 +24,8 @@ type alias Model =
 modelToValue : Model -> Json.Encode.Value
 modelToValue model =
   Json.Encode.object
-   [ ("nodes", nodesToValue model.data.nodes)
+   [ ("vertices", verticesToValue model.data.vertices)
+   , ("edges", edgesToValue model.data.edges)
    , ("treePast", Json.Encode.list (List.map treeToValue model.treePast))
    , ("treeFuture", Json.Encode.list (List.map treeToValue model.treeFuture))
    , ("viewState", viewStateToValue model.viewState)
@@ -69,6 +70,37 @@ treeNodeToValue treeNode =
     , ( "children", Json.Encode.list (List.map Json.Encode.string treeNode.children) )
     , ( "rev", maybeToValue treeNode.rev Json.Encode.string )
     , ( "deleted", Json.Encode.bool treeNode.deleted )
+    ]
+
+
+verticesToValue : Dict String Vertex -> Json.Encode.Value
+verticesToValue vertices =
+  Dict.toList vertices
+    |> List.map (\(k, v) -> (k, vertexToValue v))
+    |> Json.Encode.object
+
+
+vertexToValue : Vertex -> Json.Encode.Value
+vertexToValue vertex =
+  Json.Encode.object
+    [ ( "content", Json.Encode.string vertex.content )
+    , ( "rev", maybeToValue vertex.rev Json.Encode.string )
+    ]
+
+
+edgesToValue : Dict String Edge -> Json.Encode.Value
+edgesToValue edges =
+  Dict.toList edges
+    |> List.map (\(k, v) -> (k, edgeToValue v))
+    |> Json.Encode.object
+
+
+edgeToValue : Edge -> Json.Encode.Value
+edgeToValue edge =
+  Json.Encode.object
+    [ ( "rev", maybeToValue edge.rev Json.Encode.string )
+    , ( "from", Json.Encode.string edge.from )
+    , ( "to", Json.Encode.string edge.to )
     ]
 
 
@@ -156,6 +188,31 @@ treeNodeDecoder =
     (field "children" (list string))
     (field "rev" (maybe string))
     (field "deleted" bool)
+
+
+verticesDecoder : Decoder (Dict String Vertex)
+verticesDecoder =
+  (dict vertexDecoder)
+
+
+vertexDecoder : Decoder Vertex
+vertexDecoder =
+  Json.map2 Vertex
+    (field "rev" (maybe string))
+    (field "content" string)
+
+
+edgesDecoder : Decoder (Dict String Edge)
+edgesDecoder =
+  (dict edgeDecoder)
+
+
+edgeDecoder : Decoder Edge
+edgeDecoder =
+  Json.map3 Edge
+    (field "rev" (maybe string))
+    (field "from" string)
+    (field "to" string)
  
 
 
