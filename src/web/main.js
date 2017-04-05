@@ -66,6 +66,7 @@ gingko.ports.message.subscribe(function(msg) {
       saveAndExit(msg[1])
       break
     case 'save-temp':
+      console.log('save-temp', msg[1])
       shared.saveModel(db, msg[1])
       break
     case 'unsaved-new':

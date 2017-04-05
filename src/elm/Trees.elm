@@ -66,20 +66,21 @@ type TreeMsg
   | Mov Tree String Int
   | Del String
   | Node String TreeNode
+  | Edg String Edge
+  | Vert String Vertex
 
 
 update : TreeMsg -> Model -> Model
 update msg model =
   case msg of
-    Node id treeNode ->
+    Edg id edge ->
       let
-        newNodes =
-          Dict.insert id treeNode model.nodes
+        newEdges =
+          Dict.insert id edge model.edges
 
         newTree =
-          if newNodes /= model.nodes then
-            nodesToTree newNodes "0"
-              |> Result.withDefault defaultTree
+          if newEdges /= model.edges then
+            buildTree model.vertices newEdges "0"
           else
             model.tree
 
@@ -92,7 +93,30 @@ update msg model =
       { model
         | tree = newTree
         , columns = newColumns
-        , nodes = newNodes
+        , edges = newEdges
+      }
+
+    Vert id vertex ->
+      let
+        newVertices =
+          Dict.insert id vertex model.vertices
+
+        newTree =
+          if newVertices /= model.vertices then
+            buildTree newVertices model.edges "0"
+          else
+            model.tree
+
+        newColumns =
+          if newTree /= model.tree then
+            getColumns [[[newTree]]]
+          else
+            model.columns
+      in
+      { model
+        | tree = newTree
+        , columns = newColumns
+        , vertices = newVertices
       }
 
     _ ->
@@ -106,16 +130,23 @@ update msg model =
           else
             model.columns
 
-        newNodes =
+        newVertices =
           if newTree /= model.tree then
-            getNodes newTree
+            getVertices newTree
           else
-            model.nodes
+            model.vertices
+
+        newEdges =
+          if newTree /= model.tree then
+            getEdges model.edges newTree
+          else
+            model.edges
       in
       { model
         | tree = newTree
         , columns = newColumns
-        , nodes = newNodes
+        , vertices = newVertices
+        , edges = newEdges
       }
 
 
@@ -132,7 +163,7 @@ updateData model =
     | columns = getColumns [[[ model.tree ]]]
     , nodes = getNodes model.tree
     , vertices = getVertices model.tree
-    , edges = getEdges model.tree
+    , edges = getEdges model.edges model.tree
   }
 
 
@@ -157,7 +188,7 @@ updateTree msg tree =
     Del id ->
       pruneSubtree id tree
 
-    Node id treeNode ->
+    _ ->
       tree
 
 

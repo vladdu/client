@@ -340,23 +340,18 @@ buildTree vertices edges rootId =
   case (Dict.get rootId vertices) of
     Just vertex ->
       let
-        mapFn (id, mbv) =
-          case mbv of
-            Just v ->
-              Just (Tree id v.content (Children []) Nothing False)
-
-            Nothing -> Nothing
-
-
         children =
-          edges
-            |> Dict.filter (\id e -> e.from == rootId) -- Dict String Edge
-            |> Dict.map (\id e -> Dict.get e.to vertices) -- Dict String (Maybe Vertex)
-            |> Dict.toList --List (String, Maybe Vertex)
-            |> List.filterMap mapFn
+          vertices
+            |> Dict.filter 
+                (\vid v -> 
+                    edges 
+                      |> Dict.filter (\eid e -> e.from == rootId && e.to == vid)
+                      |> Dict.isEmpty
+                      |> not
+                )
+            |> Dict.toList
+            |> List.map (\(vid, v) -> Tree vid v.content (Children []) v.rev False)
             |> Children
-            |> Debug.log "children"
-
       in
       Tree rootId vertex.content children vertex.rev False
 
@@ -375,14 +370,21 @@ getVertices tree =
     |> Dict.fromList
 
 
-getEdges : Tree -> Dict String Edge
-getEdges tree =
+getEdges : Dict String Edge -> Tree -> Dict String Edge
+getEdges edges tree =
   let
     allTrees =
       tree :: (getDescendants tree)
+        |> Debug.log "allTrees"
 
     childToEdge t c =
-      (t.id ++ c.id, Edge c.rev t.id c.id)
+      let 
+        edgeId =
+          ["edge", t.id, c.id] |> String.join "-"
+        edge =
+          Dict.get edgeId edges ? Edge Nothing t.id c.id
+      in
+      (edgeId, edge)
   in
   allTrees
     |> List.concatMap (\t -> getChildren t |> List.map (childToEdge t))

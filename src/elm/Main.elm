@@ -14,7 +14,7 @@ import Types exposing (..)
 import Trees exposing (update, view, defaultTree, blankTree)
 import TreeUtils exposing (..)
 import Sha1 exposing (..)
-import Coders exposing (modelDecoder, verticesDecoder, edgesDecoder, nodesDecoder, treeNodeDecoder, modelToValue)
+import Coders exposing (modelDecoder, verticesDecoder, edgesDecoder, edgeDecoder, vertexDecoder, nodesDecoder, treeNodeDecoder, modelToValue)
 
 
 main : Program Json.Value Model Msg
@@ -174,12 +174,13 @@ initGraph verticesJson edgesJson =
       let
         newTree_ =
           buildTree vertices edges "0" |> Ok
+            |> Debug.log "initGraph newTree"
       in
       case newTree_ of
         Ok newTree ->
           { defaultModel
             | data =
-              Trees.Model newTree [] Dict.empty Dict.empty Dict.empty
+              Trees.Model newTree [] Dict.empty vertices edges
                 |> Trees.updateData
           }
             ! []
@@ -692,18 +693,26 @@ update msg model =
 
     ChangeIn (id, json) ->
       let
-        treeNode_ =
-          Json.decodeValue treeNodeDecoder json
+        edge_ =
+          Json.decodeValue edgeDecoder json
+
+        vertex_ =
+          Json.decodeValue vertexDecoder json
       in
-      case treeNode_ of
-        Ok treeNode ->
+      case (edge_, vertex_) of
+        (Ok edge, Err _) ->
           { model
-            | data = Trees.update (Trees.Node id treeNode) model.data
+            | data = Trees.update (Trees.Edg id edge) model.data
           }
             ! [] 
 
-        Err err ->
-          let _ = Debug.log "ChangeIn err" err in
+        (Err _, Ok vertex) ->
+          { model
+            | data = Trees.update (Trees.Vert id vertex) model.data
+          }
+            ! [] 
+        (_, _) ->
+          let _ = Debug.log "ChangeIn err" "unknown" in
           model ! []
 
     HandleKey str ->
@@ -712,11 +721,8 @@ update msg model =
       in
       case str of
         "mod+x" ->
-          { model
-            | data = Trees.updateData model.data
-                |> Debug.log "updatedData"
-          } 
-            ! []
+          let _ = Debug.log "verts, edges" (model.data.vertices, model.data.edges) in
+          model ! []
 
         "mod+s" ->
           update AttemptSave model

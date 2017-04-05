@@ -5,7 +5,6 @@ const _ = require('lodash')
 
 function saveModel(db, model) {
   var data = graphToRows(model.vertices, model.edges)
-  console.log(data)
 
   db.allDocs({
     include_docs: true
@@ -15,12 +14,21 @@ function saveModel(db, model) {
       return r.doc
     })
 
-    var diff =
+    var toAdd =
       _.differenceWith(data, dataDb, _.isEqual)
 
-    console.log(data, dataDb, diff)
+    var toDelete =
+      _.differenceWith(dataDb, data, _.isEqual)
+        .map(function(obj){ obj["_deleted"] = true; return obj})
+      
+    console.log('toAdd',toAdd)
+    console.log('toDelete',toDelete)
 
-    db.bulkDocs(diff)
+    // TODO: This doesn't work for modifications. Think it through a little more.
+    //
+
+
+    db.bulkDocs(toAdd.concat(toDelete))
       .then(function (result) {
         console.log('saved', result)
       }).catch(function(err) {
@@ -83,6 +91,7 @@ function graphToRows(vertices, edges) {
   })
 
   var edgeRows = Object.keys(edges).map(function(key) {
+    console.log(edges[key])
     return  { "_id": key
             , "_rev": edges[key].rev
             , "type": "edge"
@@ -111,7 +120,8 @@ function rowsToGraph(rows) {
       .reduce(function(map, obj) {
         map[obj.doc._id] =
           { rev: obj.doc._rev
-          , content: obj.doc.content
+          , from: obj.doc.from
+          , to: obj.doc.to
           }
         return map
       }, {})
@@ -128,6 +138,7 @@ function rowsToGraph(rows) {
 /* =========== Graph Database ============== */
 
 function onChange(change) {
+  console.log('CHANGE', change)
   var db = this.db
   if(change.deleted) {
     gingko.ports.externals.send(['change-deleted', change.id])
@@ -180,7 +191,6 @@ function onChange(change) {
       _.mapKeys(_.omit(change.doc, ['_id', '_deleted']), function(val, key) {
                   return key == "_rev" ? "rev" : key
                 })
-    obj["deleted"] = change.doc._deleted ? true : false
     gingko.ports.change.send(
       [ change.id
       , obj
