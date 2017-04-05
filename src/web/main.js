@@ -60,7 +60,8 @@ gingko.ports.message.subscribe(function(msg) {
       importDialog()
       break
     case 'save':
-      shared.saveModel(db, msg[1])
+      console.log(msg[1])
+      //shared.saveModel(db, msg[1])
       break
     case 'save-and-close':
       saveAndExit(msg[1])

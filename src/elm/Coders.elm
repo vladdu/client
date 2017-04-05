@@ -101,6 +101,7 @@ edgeToValue edge =
     [ ( "rev", maybeToValue edge.rev Json.Encode.string )
     , ( "from", Json.Encode.string edge.from )
     , ( "to", Json.Encode.string edge.to )
+    , ( "modified", Json.Encode.int edge.modified )
     ]
 
 
@@ -209,10 +210,11 @@ edgesDecoder =
 
 edgeDecoder : Decoder Edge
 edgeDecoder =
-  Json.map3 Edge
+  Json.map4 Edge
     (field "rev" (maybe string))
     (field "from" string)
     (field "to" string)
+    (field "modified" int)
  
 
 

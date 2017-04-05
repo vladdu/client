@@ -122,6 +122,7 @@ function rowsToGraph(rows) {
           { rev: obj.doc._rev
           , from: obj.doc.from
           , to: obj.doc.to
+          , modified: obj.doc.modified
           }
         return map
       }, {})

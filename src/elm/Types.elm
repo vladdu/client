@@ -87,6 +87,7 @@ type alias Edge =
   { rev : Maybe String
   , from : String
   , to : String
+  , modified : Int
   }
 
 

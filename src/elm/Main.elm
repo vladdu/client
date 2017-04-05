@@ -121,43 +121,7 @@ init savedState =
 
 initNodes : Json.Value -> (Model, Cmd Msg)
 initNodes nodeJson =
-  case Json.decodeValue nodesDecoder nodeJson of
-    Ok nodes ->
-      let
-        vertices =
-          [ ("0", Vertex Nothing "test vertex")
-          , ("1", Vertex Nothing "child")
-          , ("2", Vertex Nothing "child 2")
-          ]
-            |> Dict.fromList
-
-        edges =
-          [ ("01", Edge Nothing "0" "1")
-          , ("02", Edge Nothing "0" "2")
-          ]
-            |> Dict.fromList
-
-        newTree_ =
-          buildTree vertices edges "0" |> Ok
-      in
-      case newTree_ of
-        Ok newTree ->
-          { defaultModel
-            | data =
-              Trees.Model newTree [] Dict.empty Dict.empty Dict.empty
-                |> Trees.updateData
-          }
-            ! []
-
-        Err err ->
-          let _ = Debug.log "err" err in
-          defaultModel ! []
-
-    Err err ->
-      let
-        _ = Debug.log "nodes err" err
-      in
-      defaultModel ! []
+  defaultModel ! []
 
 
 initGraph : Json.Value -> Json.Value -> (Model, Cmd Msg)

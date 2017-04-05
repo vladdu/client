@@ -382,7 +382,7 @@ getEdges edges tree =
         edgeId =
           ["edge", t.id, c.id] |> String.join "-"
         edge =
-          Dict.get edgeId edges ? Edge Nothing t.id c.id
+          Dict.get edgeId edges ? Edge Nothing t.id c.id 0
       in
       (edgeId, edge)
   in

@@ -11,6 +11,7 @@ import Markdown
 
 import Types exposing (..)
 import TreeUtils exposing (..)
+import Sha1 exposing (timestamp)
 
 
 
@@ -203,7 +204,7 @@ updateGraph msg (vertices, edges) =
           if Dict.member (edgeId pid id) edges then
             edges
           else
-            Dict.insert (edgeId pid id) (Edge Nothing pid id) edges
+            Dict.insert (edgeId pid id) (Edge Nothing pid id 0) edges
       in
       ( newVertices, newEdges ) 
 
@@ -212,14 +213,26 @@ updateGraph msg (vertices, edges) =
 
     GUpd id str ->
       let
-        updFn vert_ =
+        updVerts vert_ =
           case vert_ of
             Just vert ->
               Just { vert | content = str }
 
             Nothing -> Nothing
+
+        mapFn eid e =
+          if e.to == id then
+            {e | modified = timestamp ()}
+          else
+            e
+
+        newEdges =
+          edges
+            |> Dict.map mapFn
       in
-      ( Dict.update id updFn vertices, edges)
+      ( Dict.update id updVerts vertices
+      , newEdges
+      )
 
     _ ->
       (vertices, edges)
