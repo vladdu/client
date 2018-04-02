@@ -11,13 +11,11 @@ const querystring = require('querystring')
 const MemoryStream = require('memorystream')
 const Store = require('electron-store')
 
-import PouchDB from "pouchdb-browser";
+import PouchDB from "pouchdb";
 
 const replicationStream = require('pouchdb-replication-stream')
 PouchDB.plugin(replicationStream.plugin)
 PouchDB.adapter('writableStream', replicationStream.adapters.writableStream)
-import memoryAdapter from "pouchdb-adapter-memory";
-PouchDB.plugin(memoryAdapter)
 
 const sha1 = require('sha1')
 const machineIdSync = require('node-machine-id').machineIdSync
@@ -69,7 +67,7 @@ var filename = querystring.parse(window.location.search.slice(1))['filename'] ||
 document.title = `${filename} - Gingko`
 
 var dbpath = path.join(app.getPath('userData'), dbname)
-self.db = new PouchDB(dbpath, {adapter: 'memory'})
+self.db = new PouchDB(dbpath)
 
 var initFlags =
   [ process.platform === "darwin"
@@ -228,7 +226,7 @@ const update = (msg, data) => {
           document.title = `${filename} - Gingko`
 
           dbpath = path.join(app.getPath('userData'), dbname)
-          self.db = new PouchDB(dbpath, {adapter: 'memory'})
+          self.db = new PouchDB(dbpath)
           gingko.ports.infoForElm.send({tag: 'Reset', data: null})
         }
 
@@ -712,7 +710,7 @@ const loadFile = (filepathToLoad) => {
   db.destroy().then( res => {
     if (res.ok) {
       dbpath = path.join(app.getPath('userData'), sha1(filepathToLoad))
-      self.db = new PouchDB(dbpath, {adapter: 'memory'})
+      self.db = new PouchDB(dbpath)
 
       db.load(rs).then( res => {
         if (res.ok) {
@@ -760,7 +758,7 @@ const importFile = (filepathToImport) => {
     db.destroy().then( res => {
       if (res.ok) {
         dbpath = path.join(app.getPath('userData'), sha1(filepathToImport))
-        self.db = new PouchDB(dbpath, {adapter: 'memory'})
+        self.db = new PouchDB(dbpath)
 
         document.title = `${path.basename(filepathToImport)} - Gingko`
         setFileState(true, null)
