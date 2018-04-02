@@ -16,8 +16,6 @@ import PouchDB from "pouchdb-browser";
 const replicationStream = require('pouchdb-replication-stream')
 PouchDB.plugin(replicationStream.plugin)
 PouchDB.adapter('writableStream', replicationStream.adapters.writableStream)
-import memoryAdapter from "pouchdb-adapter-memory";
-PouchDB.plugin(memoryAdapter)
 
 const sha1 = require('sha1')
 const machineIdSync = require('node-machine-id').machineIdSync
@@ -45,16 +43,8 @@ var lastColumnIdx = null
 var collab = {}
 
 
+const dbMapping = new Store({name: "db-mapping"})
 const userStore = new Store({name: "config"})
-userStore.getWithDefault = function (key, def) {
-  let val = userStore.get(key);
-  if (typeof val === "undefined") {
-    return def;
-  } else {
-    return val;
-  }
-}
-
 
 
 
@@ -62,19 +52,19 @@ userStore.getWithDefault = function (key, def) {
 
 console.log('Gingko version', app.getVersion())
 
-var firstRun = userStore.getWithDefault('first-run', true)
+var firstRun = _.defaultTo(userStore.get('first-run'), true)
 
 var dbname = querystring.parse(window.location.search.slice(1))['dbname'] || sha1(Date.now()+machineIdSync())
 var filename = querystring.parse(window.location.search.slice(1))['filename'] || "Untitled Tree"
 document.title = `${filename} - Gingko`
 
 var dbpath = path.join(app.getPath('userData'), dbname)
-self.db = new PouchDB(dbpath, {adapter: 'memory'})
+self.db = new PouchDB(dbpath)
 
 var initFlags =
   [ process.platform === "darwin"
-  , userStore.getWithDefault('shortcut-tray-is-open', true)
-  , userStore.getWithDefault('video-modal-is-open', false)
+  , _.defaultTo(userStore.get('shortcut-tray-is-open'), true)
+  , _.defaultTo(userStore.get('video-modal-is-open'), false)
   ]
 
 self.gingko = Elm.Main.fullscreen(initFlags)
@@ -175,6 +165,9 @@ const update = (msg, data) => {
             }
 
             let toSave = objects.commits.concat(objects.treeObjects).concat(objects.refs).concat([status]);
+            if (toSave.filter(o => o.type === "commit").length == 1) {
+              dbMapping.set(`${dbpath.replace(".", "\\.")}.files`, [])
+            }
             db.bulkDocs(toSave)
               .catch(err => {
                 console.log(err)
@@ -222,26 +215,31 @@ const update = (msg, data) => {
       }
 
     , 'New': () => {
-        let clearDb = () => {
+        let newDb = () => {
           dbname = sha1(Date.now()+machineIdSync())
           filename = "Untitled Tree"
           document.title = `${filename} - Gingko`
 
           dbpath = path.join(app.getPath('userData'), dbname)
-          self.db = new PouchDB(dbpath, {adapter: 'memory'})
+          self.db = new PouchDB(dbpath)
           gingko.ports.infoForElm.send({tag: 'Reset', data: null})
         }
 
         if(changed && !saving) {
           saveConfirmation(data).then( () => {
-            db.destroy().then( res => {
-              if (res.ok) {
-                clearDb()
-              }
-            })
+            if (dbMapping.has(dbpath)) {
+              // Changes exist, do not destroy
+              newDb()
+            } else {
+              db.destroy().then( res => {
+                if (res.ok) {
+                  newDb()
+                }
+              })
+            }
           })
         } else {
-          clearDb()
+          newDb()
         }
       }
 
@@ -536,6 +534,12 @@ const save = (filepath) => {
                   if (copyErr) {
                     throw copyErr;
                   } else {
+                    // successful save and copy
+                    let dbPathMapped = dbpath.replace(".", "\\.")
+                    let dbFilesPath = `${dbPathMapped}.files`
+                    let dbFiles = _.defaultTo(dbMapping.get(dbFilesPath), [])
+                    dbFiles.push(filepath)
+                    dbMapping.set(dbFilesPath, dbFiles)
                     fs.unlink(swapfilepath, (delErr) => {
                       if (delErr) throw delErr;
                     })
@@ -712,7 +716,7 @@ const loadFile = (filepathToLoad) => {
   db.destroy().then( res => {
     if (res.ok) {
       dbpath = path.join(app.getPath('userData'), sha1(filepathToLoad))
-      self.db = new PouchDB(dbpath, {adapter: 'memory'})
+      self.db = new PouchDB(dbpath)
 
       db.load(rs).then( res => {
         if (res.ok) {
@@ -760,7 +764,7 @@ const importFile = (filepathToImport) => {
     db.destroy().then( res => {
       if (res.ok) {
         dbpath = path.join(app.getPath('userData'), sha1(filepathToImport))
-        self.db = new PouchDB(dbpath, {adapter: 'memory'})
+        self.db = new PouchDB(dbpath)
 
         document.title = `${path.basename(filepathToImport)} - Gingko`
         setFileState(true, null)
