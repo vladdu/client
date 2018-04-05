@@ -27,7 +27,6 @@ sendOut info =
         }
 
     ChangeTitle filepath_ changed ->
-      let _ = Debug.log "changed in Ports" changed in
       infoForOutside
         { tag = "ChangeTitle"
         , data = tupleToValue ( maybeToValue string ) bool ( filepath_, changed )
@@ -35,6 +34,12 @@ sendOut info =
 
     ClearDB ->
       tagOnly "ClearDB"
+
+    OpenDialog filepath_ ->
+      infoForOutside
+        { tag = "OpenDialog"
+        , data = maybeToValue string filepath_
+        }
 
     ActivateCards (cardId, col, cardIds) ->
       let

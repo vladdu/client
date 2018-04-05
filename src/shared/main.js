@@ -245,17 +245,17 @@ const update = (msg, data) => {
         ipcRenderer.send('column-number-change', data)
       }
 
-    , 'ClearDB' : async () => {
-        let destroyOp = await db.destroy()
-        if (!destroyOp.ok) {
-          throw new Error("Couldn't destroy db on ClearDB")
+    , 'ClearDB' : () => {
+        clearDb()
+      }
+
+    , 'OpenDialog': async () => {
+        let filepathArray = await openDialogRefactored()
+
+        if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
+          var filepathToLoad = filepathArray[0]
+          loadFileRefactored(filepathToLoad)
         }
-
-        console.log('at ClearDB')
-
-        dbname = sha1(Date.now()+machineIdSync())
-        dbpath = path.join(app.getPath('userData'), dbname)
-        self.db = new PouchDB(dbpath, {adapter: 'memory'})
       }
 
     , 'New': () => {
@@ -706,6 +706,26 @@ const saveAsDialog = (pathDefault) => {
 }
 
 
+const openDialogRefactored = (pathDefault) => {
+  return new Promise(
+    (resolve, reject) => {
+      var options =
+        { title: 'Open File...'
+        , defaultPath: pathDefault ? path.dirname(pathDefault) : app.getPath('documents')
+        , properties: ['openFile']
+        , filters:  [ {name: 'Gingko Files (*.gko)', extensions: ['gko']}
+                    , {name: 'All Files', extensions: ['*']}
+                    ]
+
+        }
+
+      dialog.showOpenDialog(null, options, function(filepathArray){
+        resolve(filepathArray)
+      })
+    }
+  )
+}
+
 
 const saveConfirmation = (filepath) => {
   return new Promise(
@@ -851,6 +871,35 @@ const loadFile = (filepathToLoad) => {
       })
     }
   })
+}
+
+const loadFileRefactored = async (filepath) => {
+  await clearDb(filepath)
+
+  let rs = fs.createReadStream(filepath)
+  let loadOp = await db.load(rs)
+
+  if (!loadOp.ok) {
+    throw new Error("Couldn't load database from file")
+  }
+
+  load(filepath)
+}
+
+const clearDb = (dbname) => {
+  return new Promise(
+    async (resolve, reject) => {
+      let destroyOp = await db.destroy()
+      if (!destroyOp.ok) {
+        reject(new Error("Couldn't destroy db on ClearDB"))
+      }
+
+      dbname = dbname ? dbname : sha1(Date.now()+machineIdSync())
+      dbpath = path.join(app.getPath('userData'), dbname)
+      self.db = new PouchDB(dbpath, {adapter: 'memory'})
+      resolve()
+    }
+  )
 }
 
 

@@ -36,6 +36,7 @@ type OutgoingMsg
     | ConfirmClose (Maybe String) String
     | ChangeTitle (Maybe String) Bool
     | ClearDB
+    | OpenDialog (Maybe String)
     | ActivateCards (String, Int, List (List String))
     | GetText String
     | TextSurround String String

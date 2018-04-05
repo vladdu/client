@@ -324,6 +324,7 @@ update msg ({objects, workingTree, status} as model) =
               }
                 ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) ]
                 |> maybeColumnsChanged model.workingTree.columns
+                |> changeTitle
                 |> activate lastActiveCard
 
             (Clean newHead, Just newTree) ->
@@ -337,6 +338,7 @@ update msg ({objects, workingTree, status} as model) =
               }
                 ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) ]
                 |> maybeColumnsChanged model.workingTree.columns
+                |> changeTitle
                 |> activate lastActiveCard
 
             (MergeConflict mTree oldHead newHead [], Just newTree) ->
@@ -350,6 +352,7 @@ update msg ({objects, workingTree, status} as model) =
               }
                 ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) ]
                 |> maybeColumnsChanged model.workingTree.columns
+                |> changeTitle
                 |> activate lastActiveCard
 
             (MergeConflict mTree oldHead newHead conflicts, Just newTree) ->
@@ -363,6 +366,7 @@ update msg ({objects, workingTree, status} as model) =
               }
                 ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) ]
                 |> maybeColumnsChanged model.workingTree.columns
+                |> changeTitle
                 |> activate lastActiveCard
 
             _ ->
@@ -651,8 +655,7 @@ update msg ({objects, workingTree, status} as model) =
               model |> maybeSaveAndThen intentSave
 
             "mod+o" ->
-              model ! []
-                |> intentOpen
+              intentOpen model
 
             "mod+b" ->
               case vs.editing of
@@ -1131,26 +1134,30 @@ intentSave (model, prevCmd) =
 intentNew : Model -> ( Model, Cmd Msg )
 intentNew model =
   if model.changed then
-    model ! [ sendOut (ConfirmClose model.filepath "New") ]
+    model ! [ sendOut ( ConfirmClose model.filepath "New" ) ]
   else
     resetModel model
+
+
+intentOpen : Model -> ( Model, Cmd Msg )
+intentOpen model =
+  if model.changed then
+    model ! [ sendOut ( ConfirmClose model.filepath "OpenDialog" ) ]
+  else
+    model ! [ sendOut ( OpenDialog model.filepath ) ]
+
 
 
 resetModel : Model -> ( Model, Cmd Msg )
 resetModel model =
   init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
     |> maybeColumnsChanged model.workingTree.columns
-    |> \( m, prevCmd ) -> m ! [prevCmd, sendOut ( ChangeTitle Nothing False ), sendOut ClearDB ]
+    |> changeTitle
 
 
-intentOpen : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-intentOpen (model, prevCmd) =
-  case (model.filepath, model.changed) of
-    (Just filepath, True) ->
-      model ! [ prevCmd, sendOut ( Open ( Just filepath ) ) ]
-
-    _ ->
-      model ! [ prevCmd, sendOut ( Open Nothing ) ]
+changeTitle : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+changeTitle (model, prevCmd) =
+  model ! [ prevCmd, sendOut ( ChangeTitle model.filepath model.changed ) ]
 
 
 sendCollabState : CollabState -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
