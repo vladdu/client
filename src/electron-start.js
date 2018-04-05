@@ -50,10 +50,8 @@ function createAppWindow () {
   win.loadURL(url)
 
   win.on('close', (e) => {
-    if (changed) {
-      win.webContents.send('main-save-and-close')
-      e.preventDefault()
-    }
+    win.webContents.send('main-exit')
+    e.preventDefault()
   })
 
   // Emitted when the window is closed.

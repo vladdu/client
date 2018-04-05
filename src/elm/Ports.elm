@@ -78,10 +78,10 @@ sendOut info =
         , data = int cols
         }
 
-    Save filepath ->
+    Save filepath_ ->
       infoForOutside
         { tag = "Save"
-        , data = string filepath
+        , data = maybeToValue string filepath_
         }
 
     SaveAs ->
@@ -111,6 +111,9 @@ sendOut info =
               |> String.join "\n\n"
               |> string
         }
+
+    Exit ->
+      tagOnly "Exit"
 
     Push ->
       tagOnly "Push"
@@ -142,12 +145,6 @@ sendOut info =
         , data = tupleToValue identity headToValue ( objectsValue, head_ )
         }
 
-    SetSaved filepath ->
-      infoForOutside
-        { tag = "SetSaved"
-        , data = string filepath
-        }
-
     SetVideoModal isOpen ->
       infoForOutside
         { tag = "SetVideoModal"
@@ -159,10 +156,6 @@ sendOut info =
         { tag = "SetShortcutTray"
         , data = bool isOpen
         }
-
-    SetChanged ->
-      tagOnly "SetChanged"
-
 
     SocketSend collabState ->
       infoForOutside
@@ -187,6 +180,12 @@ receiveMsg tagger onError =
 
           "Open" ->
             tagger <| Open
+
+          "IntentExit" ->
+            tagger <| IntentExit
+
+          "DoExit" ->
+            tagger <| DoExit
 
           "UpdateContent" ->
             case decodeValue ( tupleDecoder Json.Decode.string Json.Decode.string ) outsideInfo.data of
@@ -229,18 +228,11 @@ receiveMsg tagger onError =
               Err e ->
                 onError e
 
-          "Changed" ->
-            case decodeValue Json.Decode.bool outsideInfo.data of
-              Ok changed ->
-                tagger <| Changed changed
-
-              Err e ->
-                onError e
-
-          "Saved" ->
-            case decodeValue Json.Decode.string outsideInfo.data of
-              Ok filepath ->
-                tagger <| Saved filepath
+          "FileState" ->
+            let decoder = tupleDecoder (Json.Decode.maybe Json.Decode.string) Json.Decode.bool in
+            case decodeValue decoder outsideInfo.data of
+              Ok (filepath_, changed) ->
+                tagger <| FileState filepath_ changed
 
               Err e ->
                 onError e

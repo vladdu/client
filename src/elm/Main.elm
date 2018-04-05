@@ -287,6 +287,12 @@ update msg ({objects, workingTree, status} as model) =
         Open ->
           actionOpen model
 
+        IntentExit ->
+          intentExit model
+
+        DoExit ->
+          actionExit model
+
         UpdateContent (id, str) ->
           let
             newTree = Trees.update (Trees.Upd id str) model.workingTree
@@ -474,18 +480,13 @@ update msg ({objects, workingTree, status} as model) =
             ! []
             |> push
 
-        Changed changed ->
+        FileState filepath_ changed ->
           { model
-            | changed = changed
+            | filepath = filepath_
+            , changed = changed
           }
             ! []
-
-        Saved filepath ->
-          { model
-            | filepath = Just filepath
-            , changed = False
-          }
-            ! [sendOut (SetSaved filepath)]
+            |> changeTitle
 
         RecvCollabState collabState ->
           let
@@ -656,6 +657,9 @@ update msg ({objects, workingTree, status} as model) =
 
             "mod+s" ->
               model |> maybeSaveAndThen intentSave
+
+            "mod+shift+s" ->
+              model |> maybeSaveAndThen intentSaveAs
 
             "mod+o" ->
               intentOpen model
@@ -1077,8 +1081,8 @@ addToHistory ({workingTree} as model, prevCmd) =
         ! [ prevCmd
           , sendOut ( SaveObjects ( statusToValue newStatus , Objects.toValue newObjects ) )
           , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
-          , sendOut SetChanged
           ]
+          |> changeTitle
 
     Clean oldHead ->
       let
@@ -1093,8 +1097,8 @@ addToHistory ({workingTree} as model, prevCmd) =
         ! [ prevCmd
           , sendOut ( SaveObjects ( statusToValue newStatus , Objects.toValue newObjects ) )
           , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
-          , sendOut SetChanged
           ]
+          |> changeTitle
 
     MergeConflict _ oldHead newHead conflicts ->
       if (List.isEmpty conflicts || (conflicts |> List.filter (not << .resolved) |> List.isEmpty)) then
@@ -1110,8 +1114,8 @@ addToHistory ({workingTree} as model, prevCmd) =
           ! [ prevCmd
             , sendOut ( SaveObjects ( statusToValue newStatus , Objects.toValue newObjects ) )
             , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
-            , sendOut SetChanged
             ]
+            |> changeTitle
       else
         model
           ! [ prevCmd, sendOut ( SaveLocal ( model.workingTree.tree ) ) ]
@@ -1120,19 +1124,6 @@ addToHistory ({workingTree} as model, prevCmd) =
 
 
 -- === Files ===
-
-intentSave : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-intentSave (model, prevCmd) =
-  case (model.filepath, model.changed) of
-    (Nothing, True) ->
-      model ! [ prevCmd, sendOut SaveAs ]
-
-    (Just filepath, True) ->
-      model ! [ prevCmd, sendOut ( Save filepath ) ]
-
-    _ ->
-      model ! [prevCmd]
-
 
 intentNew : Model -> ( Model, Cmd Msg )
 intentNew model =
@@ -1150,6 +1141,24 @@ intentOpen model =
     actionOpen model
 
 
+intentSave : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+intentSave (model, prevCmd) =
+  model ! [ prevCmd, sendOut ( Save model.filepath ) ]
+
+
+intentSaveAs : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+intentSaveAs (model, prevCmd) =
+  model ! [ prevCmd, sendOut ( Save Nothing ) ]
+
+
+intentExit : Model -> ( Model, Cmd Msg )
+intentExit model =
+  if model.changed then
+    model ! [ sendOut ( ConfirmClose model.filepath "DoExit" ) ]
+  else
+    actionExit model
+
+
 actionOpen : Model -> ( Model, Cmd Msg )
 actionOpen model =
   model ! [ sendOut ( OpenDialog model.filepath ) ]
@@ -1157,9 +1166,16 @@ actionOpen model =
 
 actionNew : Model -> ( Model, Cmd Msg )
 actionNew model =
+  let clearDB (m, pc) = m ! [pc, sendOut ClearDB] in
   init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
     |> maybeColumnsChanged model.workingTree.columns
     |> changeTitle
+    |> clearDB
+
+
+actionExit : Model -> ( Model, Cmd Msg )
+actionExit model =
+  model ! [ sendOut Exit ]
 
 
 changeTitle : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )

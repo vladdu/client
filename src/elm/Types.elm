@@ -37,12 +37,13 @@ type OutgoingMsg
     | ChangeTitle (Maybe String) Bool
     | ClearDB
     | OpenDialog (Maybe String)
+    | Exit
     | ActivateCards (String, Int, List (List String))
     | GetText String
     | TextSurround String String
     | ConfirmCancel String String
     | ColumnNumberChange Int
-    | Save String
+    | Save (Maybe String)
     | SaveAs
     | ExportJSON Tree
     | ExportTXT Bool Tree
@@ -52,8 +53,6 @@ type OutgoingMsg
     | SaveObjects (Json.Value, Json.Value)
     | SaveLocal Tree
     | UpdateCommits (Json.Value, Maybe String)
-    | SetSaved String
-    | SetChanged
     | SetVideoModal Bool
     | SetShortcutTray Bool
     | SocketSend CollabState
@@ -63,6 +62,8 @@ type OutgoingMsg
 type IncomingMsg
     = New
     | Open
+    | IntentExit
+    | DoExit
     | UpdateContent (String, String)
     | CancelCardConfirmed
     | Load (String, Json.Value, String)
@@ -70,8 +71,7 @@ type IncomingMsg
     | ImportJSON Json.Value
     | CheckoutCommit String
     | SetHeadRev String
-    | Changed Bool
-    | Saved String
+    | FileState (Maybe String) Bool
     | RecvCollabState CollabState
     | CollaboratorDisconnected String
     | DoExportJSON

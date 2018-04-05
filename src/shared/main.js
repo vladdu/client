@@ -133,7 +133,7 @@ const update = (msg, data) => {
     , 'ConfirmClose': async () => {
         let choice = await saveConfirmationDialog()
         if (choice == 0) {
-          toElm("Changed", false)
+          toElm("FileState", [data.filepath, false])
           toElm(data.callback, null)
         } else if (choice == 2) {
           let savePath = data.filepath ? data.filepath : await saveAsDialog()
@@ -157,6 +157,15 @@ const update = (msg, data) => {
           var filepathToLoad = filepathArray[0]
           loadFileRefactored(filepathToLoad)
         }
+      }
+
+    , 'Save': async () => {
+        let savePath = data ? data : await saveAsDialog()
+        saveRefactored(savePath)
+      }
+
+    , 'Exit': () => {
+        app.exit()
       }
 
     , 'ActivateCards': () => {
@@ -271,27 +280,6 @@ const update = (msg, data) => {
         }
       }
 
-    , 'Save': () =>
-        save(data)
-          .then( filepath =>
-            gingko.ports.infoForElm.send({tag:'Saved', data: filepath})
-          )
-
-
-    , 'SaveAs': () =>
-        saveAs()
-          .then( filepath =>
-            gingko.ports.infoForElm.send({tag:'Saved', data: filepath})
-          )
-
-    , 'SaveAndClose': () => {
-        if(saveInProgress) {
-          _.delay(update, 200, 'SaveAndClose')
-        } else {
-          saveConfirmation(data).then(app.exit)
-        }
-      }
-
     , 'ExportJSON': () => {
         exportJson(data)
       }
@@ -303,9 +291,6 @@ const update = (msg, data) => {
     , 'ExportTXTColumn': () => {
         exportTxt(data)
       }
-
-    , 'SetSaved': () =>
-        setFileState(false, data)
 
     , 'SetVideoModal': () => {
         userStore.set('video-modal-is-open', data)
@@ -355,7 +340,7 @@ ipcRenderer.on('menu-new', () => toElm('Keyboard', 'mod+n'))
 ipcRenderer.on('menu-open', () => toElm('Keyboard', 'mod+o'))
 ipcRenderer.on('menu-import-json', () => update('Import'))
 ipcRenderer.on('menu-save', () => toElm('Keyboard', 'mod+s'))
-ipcRenderer.on('menu-save-as', () => update('SaveAs'))
+ipcRenderer.on('menu-save-as', () => toElm('Keyboard', 'mod+shift+s'))
 ipcRenderer.on('menu-export-json', () => gingko.ports.infoForElm.send({tag: 'DoExportJSON', data: null }))
 ipcRenderer.on('menu-export-txt', () => gingko.ports.infoForElm.send({tag: 'DoExportTXT', data: null }))
 ipcRenderer.on('menu-export-txt-current', () => gingko.ports.infoForElm.send({tag: 'DoExportTXTCurrent', data: null }))
@@ -365,7 +350,7 @@ ipcRenderer.on('zoomout', e => { webFrame.setZoomLevel(webFrame.getZoomLevel() -
 ipcRenderer.on('resetzoom', e => { webFrame.setZoomLevel(0) })
 ipcRenderer.on('menu-view-videos', () => gingko.ports.infoForElm.send({tag: 'ViewVideos', data: null }))
 ipcRenderer.on('menu-contact-support', () => { if(crisp_loaded) { $crisp.push(['do', 'chat:open']); $crisp.push(['do', 'chat:show']); } else { shell.openExternal('mailto:adriano@gingkoapp.com') } } )
-ipcRenderer.on('main-save-and-close', () => update('SaveAndClose', currentFile))
+ipcRenderer.on('main-exit', () => toElm('IntentExit', null))
 
 socket.on('collab', data => gingko.ports.infoForElm.send({tag: 'RecvCollabState', data: data}))
 socket.on('collab-leave', data => gingko.ports.infoForElm.send({tag: 'CollaboratorDisconnected', data: data}))
@@ -600,7 +585,7 @@ self.saveRefactored = async (filepath) => {
   // delete swapfile
   await deleteFile(swapfilepath)
 
-  toElm("Changed", false)
+  toElm('FileState', [filepath, false])
   saveInProgress = false
 }
 
@@ -940,26 +925,9 @@ window.onresize = () => {
 }
 
 
-const setFileState = function(bool, newpath) {
-  if (bool) {
-    changed = true
-    if (!/\*/.test(document.title)) {
-      document.title = "*" + document.title
-    }
-    gingko.ports.infoForElm.send({ tag: 'Changed', data: bool })
-  } else {
-    changed = false
-    currentFile = newpath
-    document.title = newpath ? `${path.basename(currentFile)} - Gingko` : "Untitled Tree - Gingko"
-  }
-
-  ipcRenderer.send('changed', bool)
-}
-
-
 const editingInputHandler = function(ev) {
   if (!changed) {
-    setFileState(true, currentFile)
+    // need to account for changing FileState!
   }
   collab.field = ev.target.value
   socket.emit('collab', collab)
