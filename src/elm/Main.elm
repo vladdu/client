@@ -281,6 +281,9 @@ update msg ({objects, workingTree, status} as model) =
 
     Port incomingMsg ->
       case incomingMsg of
+        New ->
+          resetModel model
+
         UpdateContent (id, str) ->
           let
             newTree = Trees.update (Trees.Upd id str) model.workingTree
@@ -300,10 +303,6 @@ update msg ({objects, workingTree, status} as model) =
         CancelCardConfirmed ->
           model ! []
             |> cancelCard
-
-        Reset ->
-          init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
-            |> maybeColumnsChanged model.workingTree.columns
 
         Load (filepath, json, lastActiveCard) ->
           let
@@ -646,8 +645,7 @@ update msg ({objects, workingTree, status} as model) =
               model ! []
 
             "mod+n" ->
-              model ! []
-                |> intentNew
+              intentNew model
 
             "mod+s" ->
               model |> maybeSaveAndThen intentSave
@@ -1130,14 +1128,19 @@ intentSave (model, prevCmd) =
       model ! [prevCmd]
 
 
-intentNew : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-intentNew (model, prevCmd) =
-  case model.filepath of
-    Nothing ->
-      model ! [prevCmd, sendOut ( New Nothing )]
+intentNew : Model -> ( Model, Cmd Msg )
+intentNew model =
+  if model.changed then
+    model ! [ sendOut (ConfirmClose model.filepath "New") ]
+  else
+    resetModel model
 
-    Just filepath ->
-      model ! [prevCmd, sendOut ( New ( Just filepath ) )]
+
+resetModel : Model -> ( Model, Cmd Msg )
+resetModel model =
+  init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
+    |> maybeColumnsChanged model.workingTree.columns
+    |> \( m, prevCmd ) -> m ! [prevCmd, sendOut ( ChangeTitle Nothing False ) ]
 
 
 intentOpen : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )

@@ -141,6 +141,10 @@ const update = (msg, data) => {
         }
       }
 
+    , 'ChangeTitle': () => {
+        document.title = `${data[1] ? "*" : ""}${data[0] ? path.basename(data[0]) : "Untitled Tree"} - Gingko`
+      }
+
     , 'ActivateCards': () => {
         setLastActive(currentFile, data[0])
         shared.scrollHorizontal(data[1])

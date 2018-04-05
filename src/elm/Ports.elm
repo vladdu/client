@@ -17,6 +17,22 @@ sendOut info =
         , data = string str
         }
 
+    ConfirmClose filepath_ callbackTag ->
+      infoForOutside
+        { tag = "ConfirmClose"
+        , data = object
+            [ ( "filepath", maybeToValue string filepath_ )
+            , ( "callback", string callbackTag )
+            ]
+        }
+
+    ChangeTitle filepath_ changed ->
+      let _ = Debug.log "changed in Ports" changed in
+      infoForOutside
+        { tag = "ChangeTitle"
+        , data = tupleToValue ( maybeToValue string ) bool ( filepath_, changed )
+        }
+
     ActivateCards (cardId, col, cardIds) ->
       let
         listListStringToValue lls =
@@ -52,15 +68,6 @@ sendOut info =
       infoForOutside
         { tag = "ColumnNumberChange"
         , data = int cols
-        }
-
-    New str_ ->
-      infoForOutside
-        { tag = "New"
-        , data =
-            case str_ of
-              Just str -> string str
-              Nothing -> null
         }
 
     Open filepath_ ->
@@ -176,6 +183,9 @@ receiveMsg tagger onError =
   infoForElm
     (\outsideInfo ->
         case outsideInfo.tag of
+          "New" ->
+            tagger <| New
+
           "UpdateContent" ->
             case decodeValue ( tupleDecoder Json.Decode.string Json.Decode.string ) outsideInfo.data of
               Ok (id, str) ->
@@ -186,9 +196,6 @@ receiveMsg tagger onError =
 
           "CancelCardConfirmed" ->
             tagger <| CancelCardConfirmed
-
-          "Reset" ->
-            tagger <| Reset
 
           "Load" ->
             case decodeValue ( tripleDecoder Json.Decode.string Json.Decode.value (Json.Decode.maybe Json.Decode.string) ) outsideInfo.data of

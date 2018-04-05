@@ -34,12 +34,12 @@ type Msg
 type OutgoingMsg
     = Alert String
     | ConfirmClose (Maybe String) String
+    | ChangeTitle (Maybe String) Bool
     | ActivateCards (String, Int, List (List String))
     | GetText String
     | TextSurround String String
     | ConfirmCancel String String
     | ColumnNumberChange Int
-    | New (Maybe String)
     | Open (Maybe String)
     | Save String
     | SaveAs
@@ -60,9 +60,9 @@ type OutgoingMsg
 
 
 type IncomingMsg
-    = UpdateContent (String, String)
+    = New
+    | UpdateContent (String, String)
     | CancelCardConfirmed
-    | Reset
     | Load (String, Json.Value, String)
     | Merge Json.Value
     | ImportJSON Json.Value
