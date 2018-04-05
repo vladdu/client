@@ -245,6 +245,19 @@ const update = (msg, data) => {
         ipcRenderer.send('column-number-change', data)
       }
 
+    , 'ClearDB' : async () => {
+        let destroyOp = await db.destroy()
+        if (!destroyOp.ok) {
+          throw new Error("Couldn't destroy db on ClearDB")
+        }
+
+        console.log('at ClearDB')
+
+        dbname = sha1(Date.now()+machineIdSync())
+        dbpath = path.join(app.getPath('userData'), dbname)
+        self.db = new PouchDB(dbpath, {adapter: 'memory'})
+      }
+
     , 'New': () => {
         let clearDb = () => {
           dbname = sha1(Date.now()+machineIdSync())

@@ -33,6 +33,9 @@ sendOut info =
         , data = tupleToValue ( maybeToValue string ) bool ( filepath_, changed )
         }
 
+    ClearDB ->
+      tagOnly "ClearDB"
+
     ActivateCards (cardId, col, cardIds) ->
       let
         listListStringToValue lls =

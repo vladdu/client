@@ -1140,7 +1140,7 @@ resetModel : Model -> ( Model, Cmd Msg )
 resetModel model =
   init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
     |> maybeColumnsChanged model.workingTree.columns
-    |> \( m, prevCmd ) -> m ! [prevCmd, sendOut ( ChangeTitle Nothing False ) ]
+    |> \( m, prevCmd ) -> m ! [prevCmd, sendOut ( ChangeTitle Nothing False ), sendOut ClearDB ]
 
 
 intentOpen : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
