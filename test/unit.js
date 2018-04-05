@@ -35,14 +35,14 @@ describe('File Saving', function() {
     let checkfile = function() {
       fs.accessSync(path.join(__dirname, filename))
     }
-    await save(filepath)
+    await saveRefactored(filepath)
     expect(checkfile).to.not.throw()
   })
 
   it('should not have a swap file', async function() {
     let filename = 'testfile-swap.txt'
     let filepath = path.join(__dirname, filename)
-    await save(filepath)
+    await saveRefactored(filepath)
     await myPause(400)
     let checkswapfile = function() {
       fs.accessSync(path.join(__dirname, filename + '.swp'))

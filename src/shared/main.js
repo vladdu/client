@@ -4,8 +4,9 @@ const autosize = require('textarea-autosize')
 const Mousetrap = require('mousetrap')
 
 const fs = require('fs')
-const getHash = require('hash-stream')
 const path = require('path')
+const {promisify} = require('util')
+const getHash = promisify(require('hash-stream'))
 const {ipcRenderer, remote, webFrame, shell} = require('electron')
 const {app, dialog} = remote
 const querystring = require('querystring')
@@ -81,6 +82,10 @@ var initFlags =
 self.gingko = Elm.Main.fullscreen(initFlags)
 self.socket = io.connect('http://localhost:3000')
 
+var toElm = function(tag, data) {
+  gingko.ports.infoForElm.send({tag: tag, data: data})
+}
+
 //self.remoteCouch = 'http://localhost:5984/atreenodes16'
 //self.remoteDb = new PouchDB(remoteCouch)
 
@@ -124,6 +129,17 @@ I know it's not much guidance, but it's a start.
 const update = (msg, data) => {
   let cases =
     { 'Alert': () => { alert(data) }
+
+    , 'ConfirmClose': async () => {
+        let choice = await saveConfirmationDialog()
+        if (choice == 0) {
+          toElm(data.callback, null)
+        } else if (choice == 2) {
+          let savePath = data.filepath ? data.filepath : await saveAsDialog()
+          saveRefactored(savePath)
+          toElm(data.callback, null)
+        }
+      }
 
     , 'ActivateCards': () => {
         setLastActive(currentFile, data[0])
@@ -347,6 +363,7 @@ const update = (msg, data) => {
 
 
 gingko.ports.infoForOutside.subscribe(function(elmdata) {
+  console.log(elmdata.tag, elmdata.data)
   update(elmdata.tag, elmdata.data)
 })
 
@@ -522,6 +539,7 @@ self.save = (filepath) => {
   return new Promise(
     (resolve, reject) => {
       let swapfilepath = filepath + '.swp'
+      console.log('filepath', filepath)
       let filewriteStream = fs.createWriteStream(swapfilepath)
       let memStream = new MemoryStream();
       saveInProgress = true
@@ -535,8 +553,10 @@ self.save = (filepath) => {
 
           getHash(memStream, 'sha1', (err, hash) => {
             streamHash = hash.toString('base64')
+            console.log(streamHash)
             getHash(swapfilepath, 'sha1', (err, fhash) => {
               swapfileHash = fhash.toString('base64')
+              console.log(swapfileHash)
 
               if (streamHash !== swapfileHash) {
                 throw new Error('File integrity check failed.')
@@ -569,6 +589,42 @@ self.save = (filepath) => {
 }
 
 
+self.saveRefactored = async (filepath) => {
+  // external state!
+  saveInProgress = true
+
+  let memStream = new MemoryStream();
+  let swapfilepath = filepath + '.swp'
+  let filewriteStream = fs.createWriteStream(swapfilepath)
+  let copyFile = promisify(fs.copyFile)
+  let deleteFile = promisify(fs.unlink)
+
+  let dumpToMemOp = await db.dump(memStream)
+
+  if (! dumpToMemOp.ok) {
+    throw new Error('Could not dump database to MemoryStream')
+  }
+
+  // write db dump to swapfile first
+  memStream.pipe(filewriteStream)
+
+  // integrity checks
+  let memHash = (await getHash(memStream, 'sha1')).toString('base64')
+  let swapHash = (await getHash(swapfilepath, 'sha1')).toString('base64')
+  if (memHash !== swapHash) {
+    throw new Error(`File integrity check failed: ${memHash} ${swapHash}`)
+  }
+
+  // copy swapfile to original filepath
+  await copyFile(swapfilepath, filepath)
+
+  // delete swapfile
+  await deleteFile(swapfilepath)
+
+  saveInProgress = false
+}
+
+
 const saveAs = () => {
   return new Promise(
     (resolve, reject) => {
@@ -581,10 +637,51 @@ const saveAs = () => {
         }
 
       dialog.showSaveDialog(options, function(filepath){
-        if(!!filepath){
+        if(typeof filepath !== 'undefined'){
           resolve(save(filepath))
-        } else {
-          reject(new Error('no save path chosen'))
+        }
+      })
+    }
+  )
+}
+
+
+const saveConfirmationDialog = async () => {
+  let options =
+    { title: "Save changes"
+    , message: "Save changes before closing?"
+    , buttons: ["Close Without Saving", "Cancel", "Save"]
+    , defaultId: 2
+    }
+
+  let choice = await showMessageBox(options)
+  return choice
+}
+
+const showMessageBox = (options) => {
+  return new Promise(
+    (resolve, reject) => {
+      let choice = dialog.showMessageBox(options)
+      resolve(choice)
+    }
+  )
+}
+
+
+const saveAsDialog = (pathDefault) => {
+  return new Promise(
+    (resolve, reject) => {
+      var options =
+        { title: 'Save As'
+        , defaultPath: pathDefault ? pathDefault.replace('.gko', '') : path.join(app.getPath('documents'),"Untitled.gko")
+        , filters:  [ {name: 'Gingko Files (*.gko)', extensions: ['gko']}
+                    , {name: 'All Files', extensions: ['*']}
+                    ]
+        }
+
+      dialog.showSaveDialog(options, function(filepath){
+        if(typeof filepath !== 'undefined'){
+          resolve(filepath)
         }
       })
     }
