@@ -389,7 +389,7 @@ gingko.ports.infoForOutside.subscribe(function(elmdata) {
 
 /* === JS to Elm Ports === */
 
-ipcRenderer.on('menu-new', () => update('New'))
+ipcRenderer.on('menu-new', () => toElm('Keyboard', 'mod+n'))
 ipcRenderer.on('menu-open', () => update('Open'))
 ipcRenderer.on('menu-import-json', () => update('Import'))
 ipcRenderer.on('menu-export-json', () => gingko.ports.infoForElm.send({tag: 'DoExportJSON', data: null }))
