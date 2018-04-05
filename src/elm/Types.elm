@@ -42,7 +42,6 @@ type OutgoingMsg
     | TextSurround String String
     | ConfirmCancel String String
     | ColumnNumberChange Int
-    | Open (Maybe String)
     | Save String
     | SaveAs
     | ExportJSON Tree
@@ -63,6 +62,7 @@ type OutgoingMsg
 
 type IncomingMsg
     = New
+    | Open
     | UpdateContent (String, String)
     | CancelCardConfirmed
     | Load (String, Json.Value, String)
@@ -70,7 +70,7 @@ type IncomingMsg
     | ImportJSON Json.Value
     | CheckoutCommit String
     | SetHeadRev String
-    | Changed
+    | Changed Bool
     | Saved String
     | RecvCollabState CollabState
     | CollaboratorDisconnected String

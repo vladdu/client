@@ -133,6 +133,7 @@ const update = (msg, data) => {
     , 'ConfirmClose': async () => {
         let choice = await saveConfirmationDialog()
         if (choice == 0) {
+          toElm("Changed", false)
           toElm(data.callback, null)
         } else if (choice == 2) {
           let savePath = data.filepath ? data.filepath : await saveAsDialog()
@@ -143,6 +144,19 @@ const update = (msg, data) => {
 
     , 'ChangeTitle': () => {
         document.title = `${data[1] ? "*" : ""}${data[0] ? path.basename(data[0]) : "Untitled Tree"} - Gingko`
+      }
+
+    , 'ClearDB' : () => {
+        clearDb()
+      }
+
+    , 'OpenDialog': async () => {
+        let filepathArray = await openDialogRefactored()
+
+        if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
+          var filepathToLoad = filepathArray[0]
+          loadFileRefactored(filepathToLoad)
+        }
       }
 
     , 'ActivateCards': () => {
@@ -245,58 +259,6 @@ const update = (msg, data) => {
         ipcRenderer.send('column-number-change', data)
       }
 
-    , 'ClearDB' : () => {
-        clearDb()
-      }
-
-    , 'OpenDialog': async () => {
-        let filepathArray = await openDialogRefactored()
-
-        if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
-          var filepathToLoad = filepathArray[0]
-          loadFileRefactored(filepathToLoad)
-        }
-      }
-
-    , 'New': () => {
-        let clearDb = () => {
-          dbname = sha1(Date.now()+machineIdSync())
-          setFileState(false, null)
-
-          dbpath = path.join(app.getPath('userData'), dbname)
-          self.db = new PouchDB(dbpath, {adapter: 'memory'})
-          gingko.ports.infoForElm.send({tag: 'Reset', data: null})
-        }
-
-        if(saveInProgress) {
-          _.delay(update, 200, 'New')
-        } else {
-          if(changed) {
-            saveConfirmation(data).then( () => {
-              db.destroy().then( res => {
-                if (res.ok) {
-                  clearDb()
-                }
-              })
-            })
-          } else {
-            clearDb()
-          }
-        }
-      }
-
-    , 'Open': () => {
-        if (saveInProgress) {
-          _.delay(update, 200, 'Open')
-        } else {
-          if (changed) {
-            saveConfirmation(data).then(openDialog)
-          } else {
-            openDialog()
-          }
-        }
-      }
-
     , 'Import': () => {
         if (saveInProgress) {
           _.delay(update, 200, 'Import')
@@ -390,14 +352,14 @@ gingko.ports.infoForOutside.subscribe(function(elmdata) {
 /* === JS to Elm Ports === */
 
 ipcRenderer.on('menu-new', () => toElm('Keyboard', 'mod+n'))
-ipcRenderer.on('menu-open', () => update('Open'))
+ipcRenderer.on('menu-open', () => toElm('Keyboard', 'mod+o'))
 ipcRenderer.on('menu-import-json', () => update('Import'))
+ipcRenderer.on('menu-save', () => toElm('Keyboard', 'mod+s'))
+ipcRenderer.on('menu-save-as', () => update('SaveAs'))
 ipcRenderer.on('menu-export-json', () => gingko.ports.infoForElm.send({tag: 'DoExportJSON', data: null }))
 ipcRenderer.on('menu-export-txt', () => gingko.ports.infoForElm.send({tag: 'DoExportTXT', data: null }))
 ipcRenderer.on('menu-export-txt-current', () => gingko.ports.infoForElm.send({tag: 'DoExportTXTCurrent', data: null }))
 ipcRenderer.on('menu-export-txt-column', (e, msg) => gingko.ports.infoForElm.send({tag: 'DoExportTXT', data: msg }))
-ipcRenderer.on('menu-save', () => gingko.ports.infoForElm.send({tag: 'Keyboard', data: 'mod+s'}))
-ipcRenderer.on('menu-save-as', () => update('SaveAs'))
 ipcRenderer.on('zoomin', e => { webFrame.setZoomLevel(webFrame.getZoomLevel() + 1) })
 ipcRenderer.on('zoomout', e => { webFrame.setZoomLevel(webFrame.getZoomLevel() - 1) })
 ipcRenderer.on('resetzoom', e => { webFrame.setZoomLevel(0) })
@@ -638,6 +600,7 @@ self.saveRefactored = async (filepath) => {
   // delete swapfile
   await deleteFile(swapfilepath)
 
+  toElm("Changed", false)
   saveInProgress = false
 }
 
@@ -983,7 +946,7 @@ const setFileState = function(bool, newpath) {
     if (!/\*/.test(document.title)) {
       document.title = "*" + document.title
     }
-    gingko.ports.infoForElm.send({ tag: 'Changed', data: null })
+    gingko.ports.infoForElm.send({ tag: 'Changed', data: bool })
   } else {
     changed = false
     currentFile = newpath

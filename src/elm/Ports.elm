@@ -78,15 +78,6 @@ sendOut info =
         , data = int cols
         }
 
-    Open filepath_ ->
-      infoForOutside
-        { tag = "Open"
-        , data =
-            case filepath_ of
-              Just filepath -> string filepath
-              Nothing -> null
-        }
-
     Save filepath ->
       infoForOutside
         { tag = "Save"
@@ -194,6 +185,9 @@ receiveMsg tagger onError =
           "New" ->
             tagger <| New
 
+          "Open" ->
+            tagger <| Open
+
           "UpdateContent" ->
             case decodeValue ( tupleDecoder Json.Decode.string Json.Decode.string ) outsideInfo.data of
               Ok (id, str) ->
@@ -236,7 +230,12 @@ receiveMsg tagger onError =
                 onError e
 
           "Changed" ->
-            tagger <| Changed
+            case decodeValue Json.Decode.bool outsideInfo.data of
+              Ok changed ->
+                tagger <| Changed changed
+
+              Err e ->
+                onError e
 
           "Saved" ->
             case decodeValue Json.Decode.string outsideInfo.data of

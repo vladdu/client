@@ -282,7 +282,10 @@ update msg ({objects, workingTree, status} as model) =
     Port incomingMsg ->
       case incomingMsg of
         New ->
-          resetModel model
+          actionNew model
+
+        Open ->
+          actionOpen model
 
         UpdateContent (id, str) ->
           let
@@ -471,9 +474,9 @@ update msg ({objects, workingTree, status} as model) =
             ! []
             |> push
 
-        Changed ->
+        Changed changed ->
           { model
-            | changed = True
+            | changed = changed
           }
             ! []
 
@@ -1136,20 +1139,24 @@ intentNew model =
   if model.changed then
     model ! [ sendOut ( ConfirmClose model.filepath "New" ) ]
   else
-    resetModel model
+    actionNew model
 
 
 intentOpen : Model -> ( Model, Cmd Msg )
 intentOpen model =
   if model.changed then
-    model ! [ sendOut ( ConfirmClose model.filepath "OpenDialog" ) ]
+    model ! [ sendOut ( ConfirmClose model.filepath "Open" ) ]
   else
-    model ! [ sendOut ( OpenDialog model.filepath ) ]
+    actionOpen model
 
 
+actionOpen : Model -> ( Model, Cmd Msg )
+actionOpen model =
+  model ! [ sendOut ( OpenDialog model.filepath ) ]
 
-resetModel : Model -> ( Model, Cmd Msg )
-resetModel model =
+
+actionNew : Model -> ( Model, Cmd Msg )
+actionNew model =
   init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
     |> maybeColumnsChanged model.workingTree.columns
     |> changeTitle
