@@ -5,7 +5,41 @@ import Types exposing (..)
 import Coders exposing (..)
 import TreeUtils exposing (getColumn)
 import Json.Encode exposing (..)
-import Json.Decode exposing (decodeValue)
+import Json.Decode as Json exposing (decodeValue)
+
+
+type OutgoingMsg
+    -- === Dialogs, Menus, Window State ===
+    = Alert String
+    | ChangeTitle (Maybe String) Bool
+    | OpenDialog (Maybe String)
+    | ConfirmClose (Maybe String) String
+    | ConfirmExit (Maybe String)
+    | ConfirmCancelCard String String
+    | ColumnNumberChange Int
+    | Exit
+    -- === Database ===
+    | ClearDB
+    | SaveToDB (Json.Value, Json.Value)
+    | SaveLocal Tree
+    | Push
+    | Pull
+    -- === File System ===
+    | Save (Maybe String)
+    | ExportJSON Tree
+    | ExportTXT Bool Tree
+    | ExportTXTColumn Int Tree
+    -- === DOM ===
+    | ActivateCards (String, Int, List (List String))
+    | GetContent String
+    | SurroundText String String
+    -- === UI ===
+    | UpdateCommits (Json.Value, Maybe String)
+    | SetVideoModal Bool
+    | SetShortcutTray Bool
+    -- === Misc ===
+    | SocketSend CollabState
+    | ConsoleLogRequested String
 
 
 sendOut : OutgoingMsg -> Cmd msg
@@ -144,7 +178,7 @@ receiveMsg tagger onError =
             tagger <| IntentExit
 
           "ContentIn" ->
-            case decodeValue ( tupleDecoder Json.Decode.string Json.Decode.string ) outsideInfo.data of
+            case decodeValue ( tupleDecoder Json.string Json.string ) outsideInfo.data of
               Ok (id, str) ->
                 tagger <| ContentIn (id, str)
 
@@ -155,7 +189,7 @@ receiveMsg tagger onError =
             tagger <| CancelCardConfirmed
 
           "Load" ->
-            case decodeValue ( tripleDecoder Json.Decode.string Json.Decode.value (Json.Decode.maybe Json.Decode.string) ) outsideInfo.data of
+            case decodeValue ( tripleDecoder Json.string Json.value (Json.maybe Json.string) ) outsideInfo.data of
               Ok ( filepath, json, lastActive_ ) ->
                 tagger <| Load (filepath, json, lastActive_ |> Maybe.withDefault "1" )
 
@@ -169,7 +203,7 @@ receiveMsg tagger onError =
             tagger <| ImportJSON outsideInfo.data
 
           "CheckoutCommit" ->
-            case decodeValue Json.Decode.string outsideInfo.data of
+            case decodeValue Json.string outsideInfo.data of
               Ok commitSha ->
                 tagger <| CheckoutCommit commitSha
 
@@ -177,7 +211,7 @@ receiveMsg tagger onError =
                 onError e
 
           "SetHeadRev" ->
-            case decodeValue Json.Decode.string outsideInfo.data of
+            case decodeValue Json.string outsideInfo.data of
               Ok rev ->
                 tagger <| SetHeadRev rev
 
@@ -185,7 +219,7 @@ receiveMsg tagger onError =
                 onError e
 
           "FileState" ->
-            let decoder = tupleDecoder (Json.Decode.maybe Json.Decode.string) Json.Decode.bool in
+            let decoder = tupleDecoder (Json.maybe Json.string) Json.bool in
             case decodeValue decoder outsideInfo.data of
               Ok (filepath_, changed) ->
                 tagger <| FileState filepath_ changed
@@ -202,7 +236,7 @@ receiveMsg tagger onError =
                 onError e
 
           "CollaboratorDisconnected" ->
-            case decodeValue Json.Decode.string outsideInfo.data of
+            case decodeValue Json.string outsideInfo.data of
               Ok uid ->
                 tagger <| CollaboratorDisconnected uid
 
@@ -213,7 +247,7 @@ receiveMsg tagger onError =
             tagger <| DoExportJSON
 
           "DoExportTXT" ->
-            case decodeValue Json.Decode.int outsideInfo.data of
+            case decodeValue Json.int outsideInfo.data of
               Ok col ->
                 tagger <| DoExportTXTColumn col
 
@@ -227,7 +261,7 @@ receiveMsg tagger onError =
             tagger <| ViewVideos
 
           "Keyboard" ->
-            case decodeValue Json.Decode.string outsideInfo.data of
+            case decodeValue Json.string outsideInfo.data of
               Ok shortcut ->
                 tagger <| Keyboard shortcut
 

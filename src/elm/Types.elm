@@ -31,55 +31,32 @@ type Msg
     | LogErr String
 
 
-type OutgoingMsg
-    = Alert String
-    | ConfirmClose (Maybe String) String
-    | ChangeTitle (Maybe String) Bool
-    | ClearDB
-    | OpenDialog (Maybe String)
-    | Exit
-    | ActivateCards (String, Int, List (List String))
-    | GetText String
-    | TextSurround String String
-    | ConfirmCancel String String
-    | ColumnNumberChange Int
-    | Save (Maybe String)
-    | SaveAs
-    | ExportJSON Tree
-    | ExportTXT Bool Tree
-    | ExportTXTColumn Int Tree
-    | Push
-    | Pull
-    | SaveObjects (Json.Value, Json.Value)
-    | SaveLocal Tree
-    | UpdateCommits (Json.Value, Maybe String)
-    | SetVideoModal Bool
-    | SetShortcutTray Bool
-    | SocketSend CollabState
-    | ConsoleLogRequested String
-
-
 type IncomingMsg
-    = New
-    | Open
-    | IntentExit
-    | DoExit
-    | UpdateContent (String, String)
+    -- === Dialogs, Menus, Window State ===
+    = NewConfirmed
+    | OpenConfirmed
     | CancelCardConfirmed
-    | Load (String, Json.Value, String)
-    | Merge Json.Value
-    | ImportJSON Json.Value
-    | CheckoutCommit String
-    | SetHeadRev String
-    | FileState (Maybe String) Bool
-    | RecvCollabState CollabState
-    | CollaboratorDisconnected String
+    | IntentExit
     | DoExportJSON
     | DoExportTXT
     | DoExportTXTCurrent
     | DoExportTXTColumn Int
+    -- === Database ===
+    | SetHeadRev String
+    | Load (String, Json.Value, String)
+    | Merge Json.Value
+    | ImportJSON Json.Value
+    -- === File System ===
+    | FileState (Maybe String) Bool
+    -- === DOM ===
+    | ContentIn (String, String)
+    -- === UI ===
+    | CheckoutCommit String
     | ViewVideos
     | Keyboard String
+    -- === Misc ===
+    | RecvCollabState CollabState
+    | CollaboratorDisconnected String
 
 
 type alias OutsideData =
