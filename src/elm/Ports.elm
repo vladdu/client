@@ -13,7 +13,7 @@ type OutgoingMsg
     = Alert String
     | ChangeTitle (Maybe String) Bool
     | OpenDialog (Maybe String)
-    | ConfirmClose (Maybe String) String
+    | ConfirmClose (Maybe String) IncomingMsg
     | ConfirmExit (Maybe String)
     | ConfirmCancelCard String String
     | ColumnNumberChange Int
@@ -58,11 +58,11 @@ sendOut info =
     OpenDialog filepath_ ->
       dataToSend ( maybeToValue string filepath_ )
 
-    ConfirmClose filepath_ callbackTag ->
+    ConfirmClose filepath_ callbackMsg ->
       dataToSend
         ( object
             [ ( "filepath", maybeToValue string filepath_ )
-            , ( "callback", string callbackTag )
+            , ( "callback", string ( callbackMsg |> unionTypeToString ) )
             ]
         )
 
@@ -277,14 +277,18 @@ receiveMsg tagger onError =
 encodeAndSend : OutgoingMsg -> Json.Encode.Value -> Cmd msg
 encodeAndSend info data =
   let
-    tagName =
-      info
-        |> toString
-        |> String.words
-        |> List.head
-        |> Maybe.withDefault (info |> toString)
+    tagName = unionTypeToString info
   in
   infoForOutside { tag = tagName, data = data }
+
+
+unionTypeToString : a -> String
+unionTypeToString ut =
+  ut
+    |> toString
+    |> String.words
+    |> List.head
+    |> Maybe.withDefault (ut |> toString)
 
 
 port infoForOutside : OutsideData -> Cmd msg
