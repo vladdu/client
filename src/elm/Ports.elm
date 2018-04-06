@@ -10,36 +10,32 @@ import Json.Decode exposing (decodeValue)
 
 sendOut : OutgoingMsg -> Cmd msg
 sendOut info =
+  let
+    dataToSend = encodeAndSend info
+  in
   case info of
     Alert str ->
-      infoForOutside
-        { tag = "Alert"
-        , data = string str
-        }
+      dataToSend ( string str )
 
     ConfirmClose filepath_ callbackTag ->
-      infoForOutside
-        { tag = "ConfirmClose"
-        , data = object
+      dataToSend
+        ( object
             [ ( "filepath", maybeToValue string filepath_ )
             , ( "callback", string callbackTag )
             ]
-        }
+        )
+
+    ConfirmExit filepath_ ->
+      dataToSend ( maybeToValue string filepath_ )
 
     ChangeTitle filepath_ changed ->
-      infoForOutside
-        { tag = "ChangeTitle"
-        , data = tupleToValue ( maybeToValue string ) bool ( filepath_, changed )
-        }
+      dataToSend ( tupleToValue ( maybeToValue string ) bool ( filepath_, changed ) )
 
     ClearDB ->
-      tagOnly "ClearDB"
+      dataToSend ( null )
 
     OpenDialog filepath_ ->
-      infoForOutside
-        { tag = "OpenDialog"
-        , data = maybeToValue string filepath_
-        }
+      dataToSend ( maybeToValue string filepath_ )
 
     ActivateCards (cardId, col, cardIds) ->
       let
@@ -49,89 +45,54 @@ sendOut info =
             |> List.map list
             |> list
       in
-      infoForOutside
-        { tag = "ActivateCards"
-        , data = tripleToValue string int listListStringToValue ( cardId, col, cardIds )
-        }
+      dataToSend ( tripleToValue string int listListStringToValue ( cardId, col, cardIds ) )
 
-    GetText id ->
-      infoForOutside
-        { tag = "GetText"
-        , data = string id
-        }
+    GetContent id ->
+      dataToSend ( string id )
 
-    TextSurround id str ->
-      infoForOutside
-        { tag = "TextSurround"
-        , data = list [ string id, string str ]
-        }
+    SurroundText id str ->
+      dataToSend ( list [ string id, string str ] )
 
-    ConfirmCancel id origContent ->
-      infoForOutside
-        { tag = "ConfirmCancel"
-        , data = list [ string id, string origContent ]
-        }
+    ConfirmCancelCard id origContent ->
+      dataToSend ( list [ string id, string origContent ] )
 
     ColumnNumberChange cols ->
-      infoForOutside
-        { tag = "ColumnNumberChange"
-        , data = int cols
-        }
+      dataToSend ( int cols )
 
     Save filepath_ ->
-      infoForOutside
-        { tag = "Save"
-        , data = maybeToValue string filepath_
-        }
-
-    SaveAs ->
-      tagOnly "SaveAs"
+      dataToSend ( maybeToValue string filepath_ )
 
     ExportJSON tree ->
-      infoForOutside
-        { tag = "ExportJSON"
-        , data = treeToJSON tree
-        }
+      dataToSend ( treeToJSON tree )
 
     ExportTXT withRoot tree ->
-      infoForOutside
-        { tag = "ExportTXT"
-        , data = treeToMarkdown withRoot tree
-        }
+      dataToSend ( treeToMarkdown withRoot tree )
 
     ExportTXTColumn col tree ->
-      infoForOutside
-        { tag = "ExportTXT"
-        , data =
-            tree
-              |> getColumn col
-              |> Maybe.withDefault [[]]
-              |> List.concat
-              |> List.map .content
-              |> String.join "\n\n"
-              |> string
-        }
+      dataToSend
+        ( tree
+            |> getColumn col
+            |> Maybe.withDefault [[]]
+            |> List.concat
+            |> List.map .content
+            |> String.join "\n\n"
+            |> string
+        )
 
     Exit ->
-      tagOnly "Exit"
+      dataToSend null
 
     Push ->
-      tagOnly "Push"
+      dataToSend null
 
     Pull ->
-      tagOnly "Pull"
+      dataToSend null
 
-    SaveObjects ( statusValue, objectsValue ) ->
-      infoForOutside
-        { tag = "SaveObjects"
-        , data = list [ statusValue, objectsValue ]
-        }
+    SaveToDB ( statusValue, objectsValue ) ->
+      dataToSend ( list [ statusValue, objectsValue ] )
 
     SaveLocal tree ->
-      infoForOutside
-        { tag = "SaveLocal"
-        , data = treeToValue tree
-        }
+      dataToSend ( treeToValue tree )
 
     UpdateCommits ( objectsValue, head_ ) ->
       let
@@ -140,34 +101,21 @@ sendOut info =
             Just str -> string str
             Nothing -> null
       in
-      infoForOutside
-        { tag = "UpdateCommits"
-        , data = tupleToValue identity headToValue ( objectsValue, head_ )
-        }
+      dataToSend ( tupleToValue identity headToValue ( objectsValue, head_ ) )
 
     SetVideoModal isOpen ->
-      infoForOutside
-        { tag = "SetVideoModal"
-        , data = bool isOpen
-        }
+      dataToSend ( bool isOpen )
 
     SetShortcutTray isOpen ->
-      infoForOutside
-        { tag = "SetShortcutTray"
-        , data = bool isOpen
-        }
+      dataToSend ( bool isOpen )
 
     SocketSend collabState ->
-      infoForOutside
-        { tag = "SocketSend"
-        , data = collabStateToValue collabState
-        }
+      dataToSend ( collabStateToValue collabState )
 
     ConsoleLogRequested err ->
-      infoForOutside
-        { tag = "ConsoleLogRequested"
-        , data = string err
-        }
+      dataToSend ( string err )
+
+
 
 
 receiveMsg : (IncomingMsg -> msg) -> (String -> msg) -> Sub msg
@@ -175,22 +123,19 @@ receiveMsg tagger onError =
   infoForElm
     (\outsideInfo ->
         case outsideInfo.tag of
-          "New" ->
-            tagger <| New
+          "NewConfirmed" ->
+            tagger <| NewConfirmed
 
-          "Open" ->
-            tagger <| Open
+          "OpenConfirmed" ->
+            tagger <| OpenConfirmed
 
           "IntentExit" ->
             tagger <| IntentExit
 
-          "DoExit" ->
-            tagger <| DoExit
-
-          "UpdateContent" ->
+          "ContentIn" ->
             case decodeValue ( tupleDecoder Json.Decode.string Json.Decode.string ) outsideInfo.data of
               Ok (id, str) ->
-                tagger <| UpdateContent (id, str)
+                tagger <| ContentIn (id, str)
 
               Err e ->
                 onError e
@@ -279,13 +224,22 @@ receiveMsg tagger onError =
                 onError e
 
           _ ->
-            onError <| "Unexpected info from outside: " ++ toString outsideInfo
+            Debug.crash ("Unexpected info from outside: " ++ toString outsideInfo)
+            -- onError <| "Unexpected info from outside: " ++ toString outsideInfo
     )
 
 
-tagOnly : String -> Cmd msg
-tagOnly tag =
-  infoForOutside { tag = tag, data = null }
+encodeAndSend : OutgoingMsg -> Json.Encode.Value -> Cmd msg
+encodeAndSend info data =
+  let
+    tagName =
+      info
+        |> toString
+        |> String.words
+        |> List.head
+        |> Maybe.withDefault (info |> toString)
+  in
+  infoForOutside { tag = tagName, data = data }
 
 
 port infoForOutside : OutsideData -> Cmd msg
