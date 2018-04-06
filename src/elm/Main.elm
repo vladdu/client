@@ -103,7 +103,7 @@ update msg ({objects, workingTree, status} as model) =
     Activate id ->
       case vs.editing of
         Just eid ->
-          model ! [ sendOut ( GetText eid ) ]
+          model ! [ sendOut ( GetContent eid ) ]
             |> cancelCard
             |> activate id
 
@@ -281,37 +281,54 @@ update msg ({objects, workingTree, status} as model) =
 
     Port incomingMsg ->
       case incomingMsg of
-        New ->
+        -- === Dialogs, Menus, Window State ===
+
+        NewConfirmed ->
           actionNew model
 
-        Open ->
+        OpenConfirmed ->
           actionOpen model
-
-        IntentExit ->
-          intentExit model
-
-        DoExit ->
-          actionExit model
-
-        UpdateContent (id, str) ->
-          let
-            newTree = Trees.update (Trees.Upd id str) model.workingTree
-          in
-          if newTree.tree /= model.workingTree.tree then
-            { model
-              | workingTree = newTree
-            }
-              ! []
-              |> addToHistory
-              |> sendCollabState (CollabState model.uid (Active id) "")
-          else
-            model
-              ! []
-              |> sendCollabState (CollabState model.uid (Active id) "")
 
         CancelCardConfirmed ->
           model ! []
             |> cancelCard
+
+        IntentExit ->
+          if model.changed then
+            model ! [ sendOut ( ConfirmExit model.filepath ) ]
+          else
+            model ! [ sendOut Exit ]
+
+        DoExportJSON ->
+          model
+            ! [ sendOut ( ExportJSON model.workingTree.tree ) ]
+
+        DoExportTXT ->
+          model
+            ! [ sendOut ( ExportTXT False model.workingTree.tree )]
+
+        DoExportTXTCurrent ->
+          let
+            currentTree =
+              model.workingTree.tree
+                |> getTree model.viewState.active
+                |> Maybe.withDefault model.workingTree.tree
+          in
+          model
+            ! [ sendOut ( ExportTXT True currentTree )]
+
+        DoExportTXTColumn col ->
+          model
+            ! [ sendOut ( ExportTXTColumn col model.workingTree.tree )]
+
+        -- === Database ===
+
+        SetHeadRev rev ->
+          { model
+            | objects = Objects.setHeadRev rev model.objects
+          }
+            ! []
+            |> push
 
         Load (filepath, json, lastActiveCard) ->
           let
@@ -440,7 +457,7 @@ update msg ({objects, workingTree, status} as model) =
                 , status = newStatus
                 , changed = True
               }
-                ! [ sendOut ( SaveObjects ( statusToValue newStatus , Objects.toValue newObjects ) )
+                ! [ sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) )
                   , sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) )
                   ]
                   |> maybeColumnsChanged model.workingTree.columns
@@ -449,6 +466,36 @@ update msg ({objects, workingTree, status} as model) =
             Err err ->
               let _ = Debug.log "ImportJson error" err in
               model ! []
+
+        -- === File System ===
+
+        FileState filepath_ changed ->
+          { model
+            | filepath = filepath_
+            , changed = changed
+          }
+            ! []
+            |> changeTitle
+
+        -- === DOM ===
+
+        ContentIn (id, str) ->
+          let
+            newTree = Trees.update (Trees.Upd id str) model.workingTree
+          in
+          if newTree.tree /= model.workingTree.tree then
+            { model
+              | workingTree = newTree
+            }
+              ! []
+              |> addToHistory
+              |> sendCollabState (CollabState model.uid (Active id) "")
+          else
+            model
+              ! []
+              |> sendCollabState (CollabState model.uid (Active id) "")
+
+        -- === UI ===
 
         CheckoutCommit commitSha ->
           case status of
@@ -473,72 +520,6 @@ update msg ({objects, workingTree, status} as model) =
                   model ! []
                     |> Debug.log "failed to load commit"
 
-        SetHeadRev rev ->
-          { model
-            | objects = Objects.setHeadRev rev model.objects
-          }
-            ! []
-            |> push
-
-        FileState filepath_ changed ->
-          { model
-            | filepath = filepath_
-            , changed = changed
-          }
-            ! []
-            |> changeTitle
-
-        RecvCollabState collabState ->
-          let
-            newCollabs =
-              if List.member collabState.uid (vs.collaborators |> List.map .uid) then
-                vs.collaborators |> List.map (\c -> if c.uid == collabState.uid then collabState else c)
-              else
-                collabState :: vs.collaborators
-
-            newTree =
-              case collabState.mode of
-                Editing editId ->
-                  Trees.update (Trees.Upd editId collabState.field) model.workingTree
-
-                _ -> model.workingTree
-          in
-          { model
-            | workingTree = newTree
-            , viewState = { vs | collaborators = newCollabs }
-          }
-            ! []
-
-        CollaboratorDisconnected uid ->
-          { model
-            | viewState =
-                { vs | collaborators = vs.collaborators |> List.filter (\c -> c.uid /= uid)}
-          }
-            ! []
-
-        DoExportJSON ->
-          model
-            ! [ sendOut ( ExportJSON model.workingTree.tree ) ]
-
-        DoExportTXT ->
-          model
-            ! [ sendOut ( ExportTXT False model.workingTree.tree )]
-
-        DoExportTXTCurrent ->
-          let
-            currentTree =
-              model.workingTree.tree
-                |> getTree model.viewState.active
-                |> Maybe.withDefault model.workingTree.tree
-          in
-          model
-            ! [ sendOut ( ExportTXT True currentTree )]
-
-        DoExportTXTColumn col ->
-          model
-            ! [ sendOut ( ExportTXTColumn col model.workingTree.tree )]
-
-
         ViewVideos ->
           model ! []
             |> toggleVideoModal True
@@ -555,7 +536,7 @@ update msg ({objects, workingTree, status} as model) =
                   model ! []
 
                 Just uid ->
-                  model ! [ sendOut ( GetText uid ) ]
+                  model ! [ sendOut ( GetContent uid ) ]
                     |> cancelCard
                     |> activate uid
 
@@ -653,7 +634,10 @@ update msg ({objects, workingTree, status} as model) =
               model ! []
 
             "mod+n" ->
-              intentNew model
+              if model.changed then
+                model ! [ sendOut ( ConfirmClose model.filepath NewConfirmed ) ]
+              else
+                actionNew model
 
             "mod+s" ->
               model |> maybeSaveAndThen intentSave
@@ -662,7 +646,10 @@ update msg ({objects, workingTree, status} as model) =
               model |> maybeSaveAndThen intentSaveAs
 
             "mod+o" ->
-              intentOpen model
+              if model.changed then
+                model ! [ sendOut ( ConfirmClose model.filepath OpenConfirmed ) ]
+              else
+                actionOpen model
 
             "mod+b" ->
               case vs.editing of
@@ -670,7 +657,7 @@ update msg ({objects, workingTree, status} as model) =
                   model ! []
 
                 Just uid ->
-                  model ! [ sendOut ( TextSurround uid "**" ) ]
+                  model ! [ sendOut ( SurroundText uid "**" ) ]
 
             "mod+i" ->
               case vs.editing of
@@ -678,11 +665,42 @@ update msg ({objects, workingTree, status} as model) =
                   model ! []
 
                 Just uid ->
-                  model ! [ sendOut ( TextSurround uid "*" ) ]
+                  model ! [ sendOut ( SurroundText uid "*" ) ]
 
             _ ->
               let _ = Debug.log "unhandled shortcut" shortcut in
               model ! []
+
+        -- === Misc ===
+
+        RecvCollabState collabState ->
+          let
+            newCollabs =
+              if List.member collabState.uid (vs.collaborators |> List.map .uid) then
+                vs.collaborators |> List.map (\c -> if c.uid == collabState.uid then collabState else c)
+              else
+                collabState :: vs.collaborators
+
+            newTree =
+              case collabState.mode of
+                Editing editId ->
+                  Trees.update (Trees.Upd editId collabState.field) model.workingTree
+
+                _ -> model.workingTree
+          in
+          { model
+            | workingTree = newTree
+            , viewState = { vs | collaborators = newCollabs }
+          }
+            ! []
+
+        CollaboratorDisconnected uid ->
+          { model
+            | viewState =
+                { vs | collaborators = vs.collaborators |> List.filter (\c -> c.uid /= uid)}
+          }
+            ! []
+
 
     LogErr err ->
       model ! [ sendOut (ConsoleLogRequested err) ]
@@ -912,7 +930,7 @@ intentCancelCard model =
       model ! []
 
     Just id ->
-      model ! [ sendOut (ConfirmCancel vs.active originalContent) ]
+      model ! [ sendOut (ConfirmCancelCard vs.active originalContent) ]
 
 
 -- === Card Insertion  ===
@@ -1079,7 +1097,7 @@ addToHistory ({workingTree} as model, prevCmd) =
         , changed = True
       }
         ! [ prevCmd
-          , sendOut ( SaveObjects ( statusToValue newStatus , Objects.toValue newObjects ) )
+          , sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) )
           , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
           ]
           |> changeTitle
@@ -1095,7 +1113,7 @@ addToHistory ({workingTree} as model, prevCmd) =
         , changed = True
       }
         ! [ prevCmd
-          , sendOut ( SaveObjects ( statusToValue newStatus , Objects.toValue newObjects ) )
+          , sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) )
           , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
           ]
           |> changeTitle
@@ -1112,7 +1130,7 @@ addToHistory ({workingTree} as model, prevCmd) =
           , changed = True
         }
           ! [ prevCmd
-            , sendOut ( SaveObjects ( statusToValue newStatus , Objects.toValue newObjects ) )
+            , sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) )
             , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
             ]
             |> changeTitle
@@ -1125,22 +1143,6 @@ addToHistory ({workingTree} as model, prevCmd) =
 
 -- === Files ===
 
-intentNew : Model -> ( Model, Cmd Msg )
-intentNew model =
-  if model.changed then
-    model ! [ sendOut ( ConfirmClose model.filepath "New" ) ]
-  else
-    actionNew model
-
-
-intentOpen : Model -> ( Model, Cmd Msg )
-intentOpen model =
-  if model.changed then
-    model ! [ sendOut ( ConfirmClose model.filepath "Open" ) ]
-  else
-    actionOpen model
-
-
 intentSave : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 intentSave (model, prevCmd) =
   model ! [ prevCmd, sendOut ( Save model.filepath ) ]
@@ -1149,14 +1151,6 @@ intentSave (model, prevCmd) =
 intentSaveAs : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 intentSaveAs (model, prevCmd) =
   model ! [ prevCmd, sendOut ( Save Nothing ) ]
-
-
-intentExit : Model -> ( Model, Cmd Msg )
-intentExit model =
-  if model.changed then
-    model ! [ sendOut ( ConfirmClose model.filepath "DoExit" ) ]
-  else
-    actionExit model
 
 
 actionOpen : Model -> ( Model, Cmd Msg )
@@ -1171,11 +1165,6 @@ actionNew model =
     |> maybeColumnsChanged model.workingTree.columns
     |> changeTitle
     |> clearDB
-
-
-actionExit : Model -> ( Model, Cmd Msg )
-actionExit model =
-  model ! [ sendOut Exit ]
 
 
 changeTitle : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -1294,7 +1283,7 @@ maybeSaveAndThen operation model =
         |> operation
 
     Just uid ->
-      model ! [ sendOut ( GetText uid ) ]
+      model ! [ sendOut ( GetContent uid ) ]
         |> operation
 
 

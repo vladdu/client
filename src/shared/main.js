@@ -128,26 +128,12 @@ I know it's not much guidance, but it's a start.
 
 const update = (msg, data) => {
   let cases =
-    { 'Alert': () => { alert(data) }
-
-    , 'ConfirmClose': async () => {
-        let choice = await saveConfirmationDialog()
-        if (choice == 0) {
-          toElm("FileState", [data.filepath, false])
-          toElm(data.callback, null)
-        } else if (choice == 2) {
-          let savePath = data.filepath ? data.filepath : await saveAsDialog()
-          await saveRefactored(savePath)
-          toElm(data.callback, null)
-        }
-      }
+    {
+      /* --- Dialogs, Menus, Window State --- */
+      'Alert': () => { alert(data) }
 
     , 'ChangeTitle': () => {
         document.title = `${data[1] ? "*" : ""}${data[0] ? path.basename(data[0]) : "Untitled Tree"} - Gingko`
-      }
-
-    , 'ClearDB' : () => {
-        clearDb()
       }
 
     , 'OpenDialog': async () => {
@@ -159,53 +145,61 @@ const update = (msg, data) => {
         }
       }
 
-    , 'Save': async () => {
-        let savePath = data ? data : await saveAsDialog()
-        saveRefactored(savePath)
+    , 'ConfirmClose': async () => {
+        let choice = await saveConfirmationDialog()
+        if (choice == 0) {
+          // "Close without Saving"
+          toElm(data.callback, null)
+        } else if (choice == 2) {
+          // "Save and then Callback"
+          let savePath = data.filepath ? data.filepath : await saveAsDialog()
+          await save(savePath)
+          toElm(data.callback, null)
+        }
+      }
+
+    , 'ConfirmExit': async () => {
+        let choice = await saveConfirmationDialog()
+        if (choice == 0) {
+          // "Close without Saving"
+          app.exit()
+        } else if (choice == 2) {
+          // "Save and then Exit"
+          let savePath = data.filepath ? data.filepath : await saveAsDialog()
+          await save(savePath)
+          app.exit()
+        }
+      }
+
+    , 'ConfirmCancelCard': () => {
+        let tarea = document.getElementById('card-edit-'+data[0])
+
+        if (tarea === null) {
+          console.log('tarea not found')
+        } else {
+          if(tarea.value === data[1]) {
+            toElm('CancelCardConfirmed', null)
+          } else if (confirm('Are you sure you want to cancel your changes?')) {
+            toElm('CancelCardConfirmed', null)
+          }
+        }
+      }
+
+    , 'ColumnNumberChange': () => {
+        ipcRenderer.send('column-number-change', data)
       }
 
     , 'Exit': () => {
         app.exit()
       }
 
-    , 'ActivateCards': () => {
-        setLastActive(currentFile, data[0])
-        shared.scrollHorizontal(data[1])
-        shared.scrollColumns(data[2])
+      /* --- Database --- */
+
+    , 'ClearDB' : () => {
+        clearDb()
       }
 
-    , 'GetText': () => {
-        let id = data
-        let tarea = document.getElementById('card-edit-'+id)
-
-        if (tarea === null) {
-          // TODO: replace this with proper logging.
-          gingko.ports.updateError.send('Textarea with id '+id+' not found.')
-        } else {
-          gingko.ports.infoForElm.send({tag: 'UpdateContent', data: [id, tarea.value]})
-        }
-      }
-
-    , 'TextSurround': () => {
-        let id = data[0]
-        let surroundString = data[1]
-        let tarea = document.getElementById('card-edit-'+id)
-
-        if (tarea === null) {
-          // TODO: replace this with proper logging.
-          gingko.ports.updateError.send('Textarea with id '+id+' not found.')
-        } else {
-          let start = tarea.selectionStart
-          let end = tarea.selectionEnd
-          if (start !== end) {
-            let text = tarea.value.slice(start, end)
-            let modifiedText = surroundString + text + surroundString
-            document.execCommand('insertText', true, modifiedText)
-          }
-        }
-      }
-
-    , 'SaveObjects': () => {
+    , 'SaveToDB': () => {
         let status = data[0]
         let objects = data[1]
         db.get('status')
@@ -229,12 +223,78 @@ const update = (msg, data) => {
               .then(responses => {
                 let head = responses.filter(r => r.id == "heads/master")[0]
                 if (head.ok) {
-                  gingko.ports.infoForElm.send({tag: 'SetHeadRev', data: head.rev})
+                  toElm('SetHeadRev', head.rev)
                 } else {
                   console.log('head not ok', head)
                 }
               })
           })
+      }
+
+    , 'SaveLocal': () => {
+        console.log('Not implemented.')
+      }
+
+    , 'Push': push
+
+    , 'Pull': sync
+
+      /* --- File System --- */
+
+    , 'Save': async () => {
+        let savePath = data ? data : await saveAsDialog()
+        save(savePath)
+      }
+
+    , 'ExportJSON': () => {
+        exportJson(data)
+      }
+
+    , 'ExportTXT': () => {
+        exportTxt(data)
+      }
+
+    , 'ExportTXTColumn': () => {
+        exportTxt(data)
+      }
+
+      /* --- DOM --- */
+
+    , 'ActivateCards': () => {
+        setLastActive(currentFile, data[0])
+        shared.scrollHorizontal(data[1])
+        shared.scrollColumns(data[2])
+      }
+
+    , 'GetContent': () => {
+        let id = data
+        let tarea = document.getElementById('card-edit-'+id)
+
+        if (tarea === null) {
+          // TODO: replace this with proper logging.
+          throw new Error('Textarea with id '+id+' not found.')
+        } else {
+          toElm('ContentIn', [id, tarea.value])
+        }
+      }
+
+    , 'TextSurround': () => {
+        let id = data[0]
+        let surroundString = data[1]
+        let tarea = document.getElementById('card-edit-'+id)
+
+        if (tarea === null) {
+          // TODO: replace this with proper logging.
+          gingko.ports.updateError.send('Textarea with id '+id+' not found.')
+        } else {
+          let start = tarea.selectionStart
+          let end = tarea.selectionEnd
+          if (start !== end) {
+            let text = tarea.value.slice(start, end)
+            let modifiedText = surroundString + text + surroundString
+            document.execCommand('insertText', true, modifiedText)
+          }
+        }
       }
 
     , 'UpdateCommits': () => {
@@ -250,24 +310,6 @@ const update = (msg, data) => {
         //ReactDOM.render(commitElement, document.getElementById('history'))
     }
 
-    , 'ConfirmCancel': () => {
-        let tarea = document.getElementById('card-edit-'+data[0])
-
-        if (tarea === null) {
-          console.log('tarea not found')
-        } else {
-          if(tarea.value === data[1]) {
-            gingko.ports.infoForElm.send({tag: 'CancelCardConfirmed', data: null})
-          } else if (confirm('Are you sure you want to cancel your changes?')) {
-            gingko.ports.infoForElm.send({tag: 'CancelCardConfirmed', data: null})
-          }
-        }
-      }
-
-    , 'ColumnNumberChange': () => {
-        ipcRenderer.send('column-number-change', data)
-      }
-
     , 'Import': () => {
         if (saveInProgress) {
           _.delay(update, 200, 'Import')
@@ -280,18 +322,6 @@ const update = (msg, data) => {
         }
       }
 
-    , 'ExportJSON': () => {
-        exportJson(data)
-      }
-
-    , 'ExportTXT': () => {
-        exportTxt(data)
-      }
-
-    , 'ExportTXTColumn': () => {
-        exportTxt(data)
-      }
-
     , 'SetVideoModal': () => {
         userStore.set('video-modal-is-open', data)
       }
@@ -299,14 +329,6 @@ const update = (msg, data) => {
     , 'SetShortcutTray': () => {
         userStore.set('shortcut-tray-is-open', data)
       }
-
-    , 'SetChanged': () => {
-        setFileState(true, currentFile)
-      }
-
-    , 'Pull': sync
-
-    , 'Push': push
 
     , 'SocketSend': () => {
         collab = data
@@ -327,7 +349,6 @@ const update = (msg, data) => {
 
 
 gingko.ports.infoForOutside.subscribe(function(elmdata) {
-  console.log(elmdata.tag, elmdata.data)
   update(elmdata.tag, elmdata.data)
 })
 
@@ -500,60 +521,6 @@ const setHead = function(sha) {
 /* === Local Functions === */
 
 self.save = (filepath) => {
-  return new Promise(
-    (resolve, reject) => {
-      let swapfilepath = filepath + '.swp'
-      console.log('filepath', filepath)
-      let filewriteStream = fs.createWriteStream(swapfilepath)
-      let memStream = new MemoryStream();
-      saveInProgress = true
-
-      db.dump(memStream).then( res => {
-        if (res.ok) {
-          memStream.pipe(filewriteStream)
-
-          var streamHash;
-          var swapfileHash;
-
-          getHash(memStream, 'sha1', (err, hash) => {
-            streamHash = hash.toString('base64')
-            console.log(streamHash)
-            getHash(swapfilepath, 'sha1', (err, fhash) => {
-              swapfileHash = fhash.toString('base64')
-              console.log(swapfileHash)
-
-              if (streamHash !== swapfileHash) {
-                throw new Error('File integrity check failed.')
-              } else {
-                // Successful save and copy
-                saveInProgress = false
-                fs.copyFile(swapfilepath, filepath, (copyErr) => {
-                  if (copyErr) {
-                    throw copyErr;
-                  } else {
-                    fs.unlink(swapfilepath, (delErr) => {
-                      if (delErr) throw delErr;
-                    })
-                  }
-                })
-                resolve(filepath)
-              }
-            })
-          })
-        } else {
-          saveInProgress = false
-          reject(res)
-        }
-      }).catch( err => {
-        saveInProgress = false
-        reject(err)
-      })
-    }
-  )
-}
-
-
-self.saveRefactored = (filepath) => {
   return new Promise(
     async (resolve, reject) => {
       let memStream = new MemoryStream();
