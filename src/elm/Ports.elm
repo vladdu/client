@@ -14,8 +14,15 @@ sendOut info =
     dataToSend = encodeAndSend info
   in
   case info of
+    -- === Dialogs, Menus, Window State ===
     Alert str ->
       dataToSend ( string str )
+
+    ChangeTitle filepath_ changed ->
+      dataToSend ( tupleToValue ( maybeToValue string ) bool ( filepath_, changed ) )
+
+    OpenDialog filepath_ ->
+      dataToSend ( maybeToValue string filepath_ )
 
     ConfirmClose filepath_ callbackTag ->
       dataToSend
@@ -28,36 +35,33 @@ sendOut info =
     ConfirmExit filepath_ ->
       dataToSend ( maybeToValue string filepath_ )
 
-    ChangeTitle filepath_ changed ->
-      dataToSend ( tupleToValue ( maybeToValue string ) bool ( filepath_, changed ) )
-
-    ClearDB ->
-      dataToSend ( null )
-
-    OpenDialog filepath_ ->
-      dataToSend ( maybeToValue string filepath_ )
-
-    ActivateCards (cardId, col, cardIds) ->
-      let
-        listListStringToValue lls =
-          lls
-            |> List.map (List.map string)
-            |> List.map list
-            |> list
-      in
-      dataToSend ( tripleToValue string int listListStringToValue ( cardId, col, cardIds ) )
-
-    GetContent id ->
-      dataToSend ( string id )
-
-    SurroundText id str ->
-      dataToSend ( list [ string id, string str ] )
-
     ConfirmCancelCard id origContent ->
       dataToSend ( list [ string id, string origContent ] )
 
     ColumnNumberChange cols ->
       dataToSend ( int cols )
+
+    Exit ->
+      dataToSend null
+
+    -- === Database ===
+
+    ClearDB ->
+      dataToSend ( null )
+
+    SaveToDB ( statusValue, objectsValue ) ->
+      dataToSend ( list [ statusValue, objectsValue ] )
+
+    SaveLocal tree ->
+      dataToSend ( treeToValue tree )
+
+    Push ->
+      dataToSend null
+
+    Pull ->
+      dataToSend null
+
+    -- === File System ===
 
     Save filepath_ ->
       dataToSend ( maybeToValue string filepath_ )
@@ -79,20 +83,25 @@ sendOut info =
             |> string
         )
 
-    Exit ->
-      dataToSend null
+    -- === DOM ===
 
-    Push ->
-      dataToSend null
+    ActivateCards (cardId, col, cardIds) ->
+      let
+        listListStringToValue lls =
+          lls
+            |> List.map (List.map string)
+            |> List.map list
+            |> list
+      in
+      dataToSend ( tripleToValue string int listListStringToValue ( cardId, col, cardIds ) )
 
-    Pull ->
-      dataToSend null
+    GetContent id ->
+      dataToSend ( string id )
 
-    SaveToDB ( statusValue, objectsValue ) ->
-      dataToSend ( list [ statusValue, objectsValue ] )
+    SurroundText id str ->
+      dataToSend ( list [ string id, string str ] )
 
-    SaveLocal tree ->
-      dataToSend ( treeToValue tree )
+    -- === UI ===
 
     UpdateCommits ( objectsValue, head_ ) ->
       let
@@ -108,6 +117,8 @@ sendOut info =
 
     SetShortcutTray isOpen ->
       dataToSend ( bool isOpen )
+
+    -- === Misc ===
 
     SocketSend collabState ->
       dataToSend ( collabStateToValue collabState )
