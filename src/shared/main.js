@@ -137,7 +137,7 @@ const update = (msg, data) => {
           toElm(data.callback, null)
         } else if (choice == 2) {
           let savePath = data.filepath ? data.filepath : await saveAsDialog()
-          saveRefactored(savePath)
+          await saveRefactored(savePath)
           toElm(data.callback, null)
         }
       }
@@ -553,40 +553,41 @@ self.save = (filepath) => {
 }
 
 
-self.saveRefactored = async (filepath) => {
-  // external state!
-  saveInProgress = true
+self.saveRefactored = (filepath) => {
+  return new Promise(
+    async (resolve, reject) => {
+      let memStream = new MemoryStream();
+      let swapfilepath = filepath + '.swp'
+      let filewriteStream = fs.createWriteStream(swapfilepath)
+      let copyFile = promisify(fs.copyFile)
+      let deleteFile = promisify(fs.unlink)
 
-  let memStream = new MemoryStream();
-  let swapfilepath = filepath + '.swp'
-  let filewriteStream = fs.createWriteStream(swapfilepath)
-  let copyFile = promisify(fs.copyFile)
-  let deleteFile = promisify(fs.unlink)
+      let dumpToMemOp = await db.dump(memStream)
 
-  let dumpToMemOp = await db.dump(memStream)
+      if (! dumpToMemOp.ok) {
+        reject(new Error('Could not dump database to MemoryStream'))
+      }
 
-  if (! dumpToMemOp.ok) {
-    throw new Error('Could not dump database to MemoryStream')
-  }
+      // write db dump to swapfile first
+      memStream.pipe(filewriteStream)
 
-  // write db dump to swapfile first
-  memStream.pipe(filewriteStream)
+      // integrity checks
+      let memHash = (await getHash(memStream, 'sha1')).toString('base64')
+      let swapHash = (await getHash(swapfilepath, 'sha1')).toString('base64')
+      if (memHash !== swapHash) {
+        reject(new Error(`File integrity check failed: ${memHash} ${swapHash}`))
+      }
 
-  // integrity checks
-  let memHash = (await getHash(memStream, 'sha1')).toString('base64')
-  let swapHash = (await getHash(swapfilepath, 'sha1')).toString('base64')
-  if (memHash !== swapHash) {
-    throw new Error(`File integrity check failed: ${memHash} ${swapHash}`)
-  }
+      // copy swapfile to original filepath
+      await copyFile(swapfilepath, filepath)
 
-  // copy swapfile to original filepath
-  await copyFile(swapfilepath, filepath)
+      // delete swapfile
+      await deleteFile(swapfilepath)
 
-  // delete swapfile
-  await deleteFile(swapfilepath)
-
-  toElm('FileState', [filepath, false])
-  saveInProgress = false
+      toElm('FileState', [filepath, false])
+      resolve(true)
+    }
+  )
 }
 
 
