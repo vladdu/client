@@ -5,15 +5,15 @@ import Trees exposing (..)
 import Objects
 
 import Tuple exposing (first, second)
---import Regex
+import Regex
 import Html exposing (..)
 import Html.Attributes exposing (..)
---import Html.Events exposing (..)
+import Html.Events exposing (..)
 import Html.Lazy exposing (lazy, lazy2, lazy3)
---import Html.Keyed as Keyed
+import Html.Keyed as Keyed
 import Html5.DragDrop as DragDrop
 import Sha1 exposing (timeJSON)
---import Markdown
+import Markdown
 
 
 -- MODEL
@@ -85,39 +85,43 @@ type alias CollabState =
 type Msg
     = NoOp
     -- === Card Activation ===
---    | Activate String
+    | Activate String
     -- === Card Editing  ===
     | OpenCard String String
---    | DeleteCard String
---    -- === Card Insertion  ===
---    | InsertAbove String
---    | InsertBelow String
---    | InsertChild String
---    -- === Card Moving  ===
---    | DragDropMsg (DragDrop.Msg String DropId)
---    -- === History ===
---    | Undo
---    | Redo
---    | Sync
---    | SetSelection String Selection String
---    | Resolve String
+    | SaveChanges
+    | DeleteCard String
+    -- === Card Insertion  ===
+    | InsertAbove String
+    | InsertBelow String
+    | InsertChild String
+    -- === Card Moving  ===
+    | DragDropMsg (DragDrop.Msg String DropId)
+    -- === History ===
+    | Undo
+    | Redo
+    | Sync
+    | SetSelection String Selection String
+    | Resolve String
 
 
 update : Msg -> Model -> Model
 update msg model =
+  let
+    vs = model.viewState
+  in
   case msg of
     -- === Card Activation ===
---
---    Activate id ->
---      case vs.editing of
---        Just eid ->
---          model ! [ sendOut ( GetContent eid ) ]
---            |> cancelCard
---            |> activate id
---
---        Nothing ->
---          model ! []
---            |> activate id
+
+    Activate id ->
+      case vs.editing of
+        Just eid ->
+          model
+            |> cancelCard
+            |> activate id
+
+        Nothing ->
+          model
+            |> activate id
 --
 --    -- === Card Editing  ===
 --
@@ -274,6 +278,66 @@ update msg model =
 
     NoOp -> model
 
+    _ -> model
+
+
+activate : String -> Model -> Model
+activate id model =
+  let vs = model.viewState in
+  if id == "0" then
+    model
+  else
+    let
+      activeTree_ = getTree id model.workingTree.tree
+      newPast =
+        if (id == vs.active) then
+          vs.activePast
+        else
+          vs.active :: vs.activePast |> List.take 40
+    in
+    case activeTree_ of
+      Just activeTree ->
+        let
+          desc =
+            activeTree
+              |> getDescendants
+              |> List.map .id
+
+          anc =
+            getAscendants model.workingTree.tree activeTree []
+              |> List.map .id
+
+          flatCols =
+            model.workingTree.columns
+              |> List.map (\c -> List.map (\g -> List.map .id g) c)
+              |> List.map List.concat
+
+          allIds =
+            anc
+            ++ [id]
+            ++ desc
+        in
+        { model
+          | viewState =
+              { vs
+                | active = id
+                , activePast = newPast
+                , activeFuture = []
+                , descendants = desc
+              }
+        }
+
+      Nothing ->
+        model
+
+
+cancelCard : Model -> Model
+cancelCard model =
+  let vs = model.viewState in
+  { model
+    | viewState = { vs | editing = Nothing }
+  }
+
 
 openCard : String -> String -> Model -> Model
 openCard id str model =
@@ -345,12 +409,11 @@ viewColumn vstate depth col =
   div
     [ class "column" ]
     ( buffer ++
-      --(List.map (lazy3 viewGroup vstate depth) col) ++
+      (List.map (lazy3 viewGroup vstate depth) col) ++
       buffer
     )
 
 
-{-
 viewGroup : VisibleViewState -> Int -> Group -> Html Msg
 viewGroup vstate depth xs =
   let
@@ -410,7 +473,6 @@ viewGroup vstate depth xs =
                   ]
       ]
       (List.map viewFunction xs)
-
 
 viewKeyedCard : (Bool, Bool, Int, Bool, List String, List String, DragDrop.Model String DropId) -> Tree -> (String, Html Msg)
 viewKeyedCard tup tree =
@@ -483,7 +545,7 @@ viewCard (isActive, isEditing, depth, isLast, collaborators, collabsEditing, dra
                 [ span
                   [ class "card-btn save"
                   , title "Save Changes (Ctrl+Enter)"
-                  , onClick (Port (Keyboard "mod+enter"))
+                  , onClick SaveChanges
                   ]
                   []
                 ]
@@ -581,5 +643,3 @@ viewContent content =
   in
   Markdown.toHtmlWith options
     [] processedContent
-
-        -}
