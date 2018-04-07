@@ -282,6 +282,9 @@ update msg model =
 
     Port incomingMsg ->
       case incomingMsg of
+        _ ->
+          model ! []
+        {-
         -- === Dialogs, Menus, Window State ===
 
         NewConfirmed ->
@@ -701,6 +704,7 @@ update msg model =
                 { vs | collaborators = vs.collaborators |> List.filter (\c -> c.uid /= uid)}
           }
             ! []
+        -}
 
 
     LogErr err ->
