@@ -1,12 +1,25 @@
 port module Ports exposing (..)
 
 
-import Types exposing (..)
 import Coders exposing (..)
-import TreeUtils exposing (getColumn)
+import Trees exposing (Tree, getColumn)
+import Document exposing (CollabState)
 import Json.Encode exposing (..)
 import Json.Decode as Json exposing (decodeValue)
 
+
+
+
+
+type alias OutsideData =
+  { tag : String, data: Json.Value }
+
+
+
+
+-- OUTGOING MESSAGES
+
+port infoForOutside : OutsideData -> Cmd msg
 
 type OutgoingMsg
     -- === Dialogs, Menus, Window State ===
@@ -163,6 +176,39 @@ sendOut info =
 
 
 
+-- INCOMING MESSAGES
+
+port infoForElm : (OutsideData -> msg) -> Sub msg
+
+
+type IncomingMsg
+    -- === Dialogs, Menus, Window State ===
+    = NewConfirmed
+    | OpenConfirmed
+    | CancelCardConfirmed
+    | IntentExit
+    | DoExportJSON
+    | DoExportTXT
+    | DoExportTXTCurrent
+    | DoExportTXTColumn Int
+    -- === Database ===
+    | SetHeadRev String
+    | Load (String, Json.Value, String)
+    | Merge Json.Value
+    | ImportJSON Json.Value
+    -- === File System ===
+    | FileState (Maybe String) Bool
+    -- === DOM ===
+    | ContentIn (String, String)
+    -- === UI ===
+    | CheckoutCommit String
+    | ViewVideos
+    | Keyboard String
+    -- === Misc ===
+    | RecvCollabState CollabState
+    | CollaboratorDisconnected String
+
+
 receiveMsg : (IncomingMsg -> msg) -> (String -> msg) -> Sub msg
 receiveMsg tagger onError =
   infoForElm
@@ -274,6 +320,10 @@ receiveMsg tagger onError =
     )
 
 
+
+
+-- HELPERS
+
 encodeAndSend : OutgoingMsg -> Json.Encode.Value -> Cmd msg
 encodeAndSend info data =
   let
@@ -291,6 +341,3 @@ unionTypeToString ut =
     |> Maybe.withDefault (ut |> toString)
 
 
-port infoForOutside : OutsideData -> Cmd msg
-
-port infoForElm : (OutsideData -> msg) -> Sub msg

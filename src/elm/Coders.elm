@@ -1,11 +1,13 @@
 module Coders exposing (..)
 
-import Trees
-import Types exposing (..)
 import Json.Encode as Enc
 import Json.Decode as Json exposing (..)
+import Dict exposing (Dict)
 import Html5.DragDrop as DragDrop
 
+import Document exposing (..)
+import Trees exposing (..)
+import Objects exposing (..)
 
 
 
@@ -93,6 +95,158 @@ collabStateDecoder =
     (field "uid" string)
     (field "mode" modeDecoder)
     (field "field" string)
+
+
+
+-- Objects
+
+
+objectsToValue : Objects.Model -> Enc.Value
+objectsToValue model =
+  let
+    treeObjectToValue sha treeObject =
+      Enc.object
+        [ ( "_id", Enc.string sha )
+        , ( "type", Enc.string "tree" )
+        , ( "content", Enc.string treeObject.content )
+        , ( "children", Enc.list
+              (List.map (\(s, i) -> Enc.list [Enc.string s, Enc.string i]) treeObject.children) )
+        ]
+
+    refToValue sha ref =
+      Enc.object
+        [ ( "_id", Enc.string sha )
+        , ( "_rev", Enc.string ref.rev )
+        , ( "type", Enc.string "ref" )
+        , ( "value", Enc.string ref.value)
+        , ( "ancestors", Enc.list (ref.ancestors |> List.map Enc.string) )
+        ]
+
+    commits =
+      commitsToValue model.commits
+
+    treeObjects =
+      Dict.toList model.treeObjects
+        |> List.map (\(k, v) -> treeObjectToValue k v)
+        |> Enc.list
+
+    refs =
+      Dict.toList model.refs
+        |> List.map (\(k, v) -> refToValue k v)
+        |> Enc.list
+  in
+  Enc.object
+    [ ( "commits", commits )
+    , ( "treeObjects", treeObjects )
+    , ( "refs", refs )
+    ]
+
+
+objectsDecoder : Json.Decoder Objects.Model
+objectsDecoder =
+  Json.map4 Objects.Model
+    ( Json.field "commits" commitsDecoder )
+    ( Json.field "treeObjects" treeObjectsDecoder )
+    ( Json.field "refs" refObjectsDecoder )
+    ( Json.field "status" statusDecoder )
+
+
+mergeDecoder : Json.Decoder (Maybe String, Maybe String, Objects.Model)
+mergeDecoder =
+  Json.map3 (\l r m -> (l, r, m))
+    ( Json.index 0 (Json.maybe Json.string) )
+    ( Json.index 1 (Json.maybe Json.string) )
+    ( Json.index 2 objectsDecoder )
+
+
+commitsToValue : Dict String CommitObject -> Enc.Value
+commitsToValue commits =
+  let
+    commitToValue sha commit =
+      Enc.object
+        [ ( "_id", Enc.string sha )
+        , ( "type", Enc.string "commit" )
+        , ( "tree", Enc.string commit.tree )
+        , ( "parents", Enc.list (commit.parents |> List.map Enc.string) )
+        , ( "author", Enc.string commit.author )
+        , ( "timestamp", Enc.int commit.timestamp )
+        ]
+
+  in
+  Dict.toList commits
+    |> List.map (\(k, v) -> commitToValue k v)
+    |> Enc.list
+
+
+commitsDecoder : Json.Decoder (Dict String CommitObject)
+commitsDecoder =
+  let
+    commitObjectDecoder : Json.Decoder CommitObject
+    commitObjectDecoder =
+      Json.map4 CommitObject
+        ( Json.field "tree" Json.string )
+        ( Json.field "parents" (Json.list Json.string) )
+        ( Json.field "author" Json.string )
+        ( Json.field "timestamp" Json.int )
+  in
+  (Json.dict commitObjectDecoder)
+
+
+treeObjectsDecoder : Json.Decoder (Dict String TreeObject)
+treeObjectsDecoder =
+  let
+    tupleDecoder a b =
+      Json.index 0 a
+        |> Json.andThen
+          (\aVal -> Json.index 1 b
+              |> Json.andThen (\bVal -> Json.succeed (aVal, bVal))
+          )
+
+    treeObjectDecoder =
+      Json.map2 TreeObject
+        ( Json.field "content" Json.string )
+        ( Json.field "children" (Json.list (tupleDecoder Json.string Json.string)) )
+  in
+  (Json.dict treeObjectDecoder)
+
+
+refObjectsDecoder : Json.Decoder (Dict String RefObject)
+refObjectsDecoder =
+  let
+    refObjectDecoder =
+      Json.map3 RefObject
+        ( Json.field "value" Json.string )
+        ( Json.field "ancestors" (Json.list Json.string) )
+        ( Json.field "_rev" Json.string )
+  in
+  (Json.dict refObjectDecoder)
+
+
+changeDecoder : Objects.Model -> Json.Decoder Objects.Model
+changeDecoder model =
+  Json.oneOf
+    [ Json.map4 Objects.Model
+        ( Json.succeed model.commits )
+        ( Json.succeed model.treeObjects )
+        ( Json.succeed model.refs )
+        statusDecoder
+    , Json.map4 Objects.Model
+        ( Json.succeed model.commits )
+        ( Json.succeed model.treeObjects )
+        refObjectsDecoder
+        ( Json.succeed model.status )
+    , Json.map4 Objects.Model
+        ( Json.succeed model.commits )
+        treeObjectsDecoder
+        ( Json.succeed model.refs )
+        ( Json.succeed model.status )
+    , Json.map4 Objects.Model
+        commitsDecoder
+        ( Json.succeed model.treeObjects )
+        ( Json.succeed model.refs )
+        ( Json.succeed model.status )
+    ]
+
 
 
 -- Mode

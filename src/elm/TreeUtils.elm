@@ -262,12 +262,6 @@ centerlineIds flatCols allIds activePast =
 
 -- HELPERS
 
-(?) : Maybe a -> a -> a
-(?) maybe default =
-  Maybe.withDefault default maybe
-
-infixr 9 ?
-
 newLine : String
 newLine =
   String.fromList ['\n']

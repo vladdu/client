@@ -1,16 +1,11 @@
-module Objects exposing (Model, defaultModel, ObjMsg (Commit, Checkout, Init, Merge), update, toValue, setHeadRev)
+module Objects exposing (..)
 
 import Dict exposing (Dict)
 import Maybe exposing (andThen)
 import Tuple exposing (first, second)
 import List.Extra as ListExtra
 
-import Json.Encode as Enc
-import Json.Decode as Json
-import Coders exposing (statusDecoder, tupleDecoder)
-
-import Types exposing (..)
-import Trees exposing (apply, opToTreeMsg)
+import Trees exposing (..)
 import Sha1 exposing (sha1, timestamp, diff3Merge)
 
 
@@ -20,11 +15,12 @@ type alias Model =
   { commits : Dict String CommitObject
   , treeObjects : Dict String TreeObject
   , refs : Dict String RefObject
+  , status : Status
   }
 
 
 defaultModel : Model
-defaultModel = Model Dict.empty Dict.empty Dict.empty
+defaultModel = Model Dict.empty Dict.empty Dict.empty Bare
 
 
 type alias TreeObject =
@@ -48,6 +44,9 @@ type alias RefObject =
   }
 
 
+type Status = Bare | Clean String | MergeConflict Tree String String (List Conflict)
+
+
 
 
 -- GIT PORCELAIN
@@ -55,8 +54,8 @@ type alias RefObject =
 type ObjMsg
   = Commit (List String) String Tree
   | Checkout String
-  | Init Json.Value
-  | Merge Json.Value Tree
+  | Init Status Model
+  | Merge (Maybe String) (Maybe String) Tree Model
 
 
 update : ObjMsg -> Model -> (Status, Maybe Tree, Model)
@@ -73,56 +72,46 @@ update msg model =
     Checkout commitSha ->
       (Clean commitSha, checkoutCommit commitSha model, model)
 
-    Init json ->
-      case Json.decodeValue (tupleDecoder statusDecoder modelDecoder) json of
-        Ok (status, modelIn) ->
-          case status of
-            MergeConflict mTree _ _ _ ->
-              (status, Just mTree, modelIn)
+    Init status modelIn ->
+      case status of
+        MergeConflict mTree _ _ _ ->
+          (status, Just mTree, modelIn)
 
-            Clean sha ->
-              let
-                newTree_ =
-                  Dict.get sha modelIn.commits
-                    |> andThen (\co -> treeObjectsToTree modelIn.treeObjects co.tree "0")
-              in
-              (Clean sha, newTree_, modelIn)
-
-            Bare ->
-              (Bare, Nothing, modelIn)
-
-        Err err ->
-          Debug.crash ("Objects.Init:" ++ err)
-
-    Merge json oldTree ->
-      case Json.decodeValue mergeDecoder json of
-        Ok (localHead_, remoteHead_, modelIn) ->
+        Clean sha ->
           let
-            newModel =
-              { model
-                | treeObjects = Dict.union modelIn.treeObjects model.treeObjects
-                , commits = Dict.union modelIn.commits model.commits
-                , refs = Dict.union modelIn.refs model.refs
-              }
+            newTree_ =
+              Dict.get sha modelIn.commits
+                |> andThen (\co -> treeObjectsToTree modelIn.treeObjects co.tree "0")
           in
-          case (localHead_, remoteHead_) of
-            (Just localHead, Just remoteHead) ->
-              merge localHead remoteHead oldTree newModel
+          (Clean sha, newTree_, modelIn)
 
-            (Nothing, Just remoteHead) ->
-              let
-                newTree_ =
-                  Dict.get remoteHead newModel.commits
-                    |> andThen (\co -> treeObjectsToTree newModel.treeObjects co.tree "0")
-              in
-              (Clean remoteHead, newTree_, newModel)
+        Bare ->
+          (Bare, Nothing, modelIn)
 
-            _ ->
-              let _ = Debug.log "Error: no ref to master head commit." in
-              (Bare, Nothing, model)
+    Merge localHead_ remoteHead_ oldTree modelIn ->
+      let
+        newModel =
+          { model
+            | treeObjects = Dict.union modelIn.treeObjects model.treeObjects
+            , commits = Dict.union modelIn.commits model.commits
+            , refs = Dict.union modelIn.refs model.refs
+          }
+      in
+      case (localHead_, remoteHead_) of
+        (Just localHead, Just remoteHead) ->
+          merge localHead remoteHead oldTree newModel
 
-        Err err ->
-          Debug.crash err
+        (Nothing, Just remoteHead) ->
+          let
+            newTree_ =
+              Dict.get remoteHead newModel.commits
+                |> andThen (\co -> treeObjectsToTree newModel.treeObjects co.tree "0")
+          in
+          (Clean remoteHead, newTree_, newModel)
+
+        _ ->
+          let _ = Debug.log "Error: no ref to master head commit." in
+          (Bare, Nothing, model)
 
 
 
@@ -506,144 +495,6 @@ getAncestors cm sh =
 
 
 -- PORTS & INTEROP
-
-toValue : Model -> Enc.Value
-toValue model =
-  let
-    treeObjectToValue sha treeObject =
-      Enc.object
-        [ ( "_id", Enc.string sha )
-        , ( "type", Enc.string "tree" )
-        , ( "content", Enc.string treeObject.content )
-        , ( "children", Enc.list
-              (List.map (\(s, i) -> Enc.list [Enc.string s, Enc.string i]) treeObject.children) )
-        ]
-
-    refToValue sha ref =
-      Enc.object
-        [ ( "_id", Enc.string sha )
-        , ( "_rev", Enc.string ref.rev )
-        , ( "type", Enc.string "ref" )
-        , ( "value", Enc.string ref.value)
-        , ( "ancestors", Enc.list (ref.ancestors |> List.map Enc.string) )
-        ]
-
-    commits =
-      commitsToValue model.commits
-
-    treeObjects =
-      Dict.toList model.treeObjects
-        |> List.map (\(k, v) -> treeObjectToValue k v)
-        |> Enc.list
-
-    refs =
-      Dict.toList model.refs
-        |> List.map (\(k, v) -> refToValue k v)
-        |> Enc.list
-  in
-  Enc.object
-    [ ( "commits", commits )
-    , ( "treeObjects", treeObjects )
-    , ( "refs", refs )
-    ]
-
-
-modelDecoder : Json.Decoder Model
-modelDecoder =
-  Json.map3 Model
-    ( Json.field "commits" commitsDecoder )
-    ( Json.field "treeObjects" treeObjectsDecoder )
-    ( Json.field "refs" refObjectsDecoder )
-
-
-mergeDecoder : Json.Decoder (Maybe String, Maybe String, Model)
-mergeDecoder =
-  Json.map3 (\l r m -> (l, r, m))
-    ( Json.index 0 (Json.maybe Json.string) )
-    ( Json.index 1 (Json.maybe Json.string) )
-    ( Json.index 2 modelDecoder )
-
-
-commitsToValue : Dict String CommitObject -> Enc.Value
-commitsToValue commits =
-  let
-    commitToValue sha commit =
-      Enc.object
-        [ ( "_id", Enc.string sha )
-        , ( "type", Enc.string "commit" )
-        , ( "tree", Enc.string commit.tree )
-        , ( "parents", Enc.list (commit.parents |> List.map Enc.string) )
-        , ( "author", Enc.string commit.author )
-        , ( "timestamp", Enc.int commit.timestamp )
-        ]
-
-  in
-  Dict.toList commits
-    |> List.map (\(k, v) -> commitToValue k v)
-    |> Enc.list
-
-
-commitsDecoder : Json.Decoder (Dict String CommitObject)
-commitsDecoder =
-  let
-    commitObjectDecoder : Json.Decoder CommitObject
-    commitObjectDecoder =
-      Json.map4 CommitObject
-        ( Json.field "tree" Json.string )
-        ( Json.field "parents" (Json.list Json.string) )
-        ( Json.field "author" Json.string )
-        ( Json.field "timestamp" Json.int )
-  in
-  (Json.dict commitObjectDecoder)
-
-
-treeObjectsDecoder : Json.Decoder (Dict String TreeObject)
-treeObjectsDecoder =
-  let
-    tupleDecoder a b =
-      Json.index 0 a
-        |> Json.andThen
-          (\aVal -> Json.index 1 b
-              |> Json.andThen (\bVal -> Json.succeed (aVal, bVal))
-          )
-
-    treeObjectDecoder =
-      Json.map2 TreeObject
-        ( Json.field "content" Json.string )
-        ( Json.field "children" (Json.list (tupleDecoder Json.string Json.string)) )
-  in
-  (Json.dict treeObjectDecoder)
-
-
-refObjectsDecoder : Json.Decoder (Dict String RefObject)
-refObjectsDecoder =
-  let
-    refObjectDecoder =
-      Json.map3 RefObject
-        ( Json.field "value" Json.string )
-        ( Json.field "ancestors" (Json.list Json.string) )
-        ( Json.field "_rev" Json.string )
-  in
-  (Json.dict refObjectDecoder)
-
-
-changeDecoder : Model -> Json.Decoder Model
-changeDecoder model =
-  Json.oneOf
-    [ Json.map3 Model
-        ( Json.succeed model.commits )
-        ( Json.succeed model.treeObjects )
-        refObjectsDecoder
-    , Json.map3 Model
-        ( Json.succeed model.commits )
-        treeObjectsDecoder
-        ( Json.succeed model.refs )
-    , Json.map3 Model
-        commitsDecoder
-        ( Json.succeed model.treeObjects )
-        ( Json.succeed model.refs )
-    ]
-
 
 -- HELPERS
 

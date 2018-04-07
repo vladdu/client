@@ -5,32 +5,32 @@ import Trees exposing (..)
 import Objects
 
 import Tuple exposing (first, second)
+--import Regex
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (..)
+--import Html.Events exposing (..)
 import Html.Lazy exposing (lazy, lazy2, lazy3)
-import Html.Keyed as Keyed
+--import Html.Keyed as Keyed
 import Html5.DragDrop as DragDrop
-import Markdown
+import Sha1 exposing (timeJSON)
+--import Markdown
 
 
 -- MODEL
 
 
-type alias Document =
+type alias Model =
   { workingTree : Trees.Model
   , objects : Objects.Model
-  , status : Status
   , uid : String
   , viewState : ViewState
   }
 
 
-defaultDocument : Model
-defaultDocument =
+default : Model
+default =
   { workingTree = Trees.defaultModel
   , objects = Objects.defaultModel
-  , status = Bare
   , uid = timeJSON ()
   , viewState =
       { active = "1"
@@ -66,9 +66,17 @@ type alias VisibleViewState =
   }
 
 
-type Status = Bare | Clean String | MergeConflict Tree String String (List Conflict)
+type Mode = Active String | Editing String
 
 
+type DropId = Above String | Below String | Into String
+
+
+type alias CollabState =
+  { uid : String
+  , mode : Mode
+  , field : String
+  }
 
 
 -- UPDATE
@@ -95,23 +103,33 @@ type DocMsg
 --    | Resolve String
 
 
-updateDocument : DocMsg -> Document -> ( Document, Cmd DocMsg )
-updateDocument msg model =
+update : DocMsg -> Model -> ( Model, Cmd DocMsg )
+update msg model =
   case msg of
-    -- === Card Activation ===
-
-    Activate id ->
-      case vs.editing of
-        Just eid ->
-          model ! [ sendOut ( GetContent eid ) ]
-            |> cancelCard
-            |> activate id
-
-        Nothing ->
-          model ! []
-            |> activate id
+    OpenCard id str ->
+      model ! []
+        |> openCard id str
 
     NoOp -> model ! []
+
+
+openCard : String -> String -> ( Model, Cmd DocMsg ) -> ( Model, Cmd DocMsg )
+openCard id str (model, prevCmd) =
+  let
+    vs = model.viewState
+    isLocked =
+      vs.collaborators
+        |> List.filter (\c -> c.mode == Editing id)
+        |> (not << List.isEmpty)
+  in
+  if isLocked then
+    model ! [prevCmd]--, sendOut (Alert "Card is being edited by someone else.")]
+  else
+    { model
+      | viewState = { vs | active = id, editing = Just id }
+    }
+      ! [ prevCmd]--, focus id ]
+      --|> sendCollabState (CollabState model.uid (Editing id) str)
 
 
 
@@ -119,7 +137,7 @@ updateDocument msg model =
 -- VIEW
 
 
-view : Document -> Html DocMsg
+view : Model -> Html DocMsg
 view {viewState, workingTree} =
   let
     columnsWithDepth =
@@ -158,8 +176,7 @@ view {viewState, workingTree} =
     ( columns
     )
 
-
-viewColumn : VisibleViewState -> Int -> Column -> Html Msg
+viewColumn : VisibleViewState -> Int -> Column -> Html DocMsg
 viewColumn vstate depth col =
   let
     buffer =
@@ -168,11 +185,12 @@ viewColumn vstate depth col =
   div
     [ class "column" ]
     ( buffer ++
-      (List.map (lazy3 viewGroup vstate depth) col) ++
+      --(List.map (lazy3 viewGroup vstate depth) col) ++
       buffer
     )
 
 
+{-
 viewGroup : VisibleViewState -> Int -> Group -> Html Msg
 viewGroup vstate depth xs =
   let
@@ -404,3 +422,4 @@ viewContent content =
   Markdown.toHtmlWith options
     [] processedContent
 
+        -}
