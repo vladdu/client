@@ -87,10 +87,18 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     DocumentMsg documentMsg ->
+      let
+        commands =
+          case documentMsg of
+            Activate id ->
+              scrollToActive id model
+
+            _ -> Cmd.none
+      in
       { model
         | document = Document.update documentMsg model.document
       }
-        ! []
+        ! [commands]
 
     VideoModal shouldOpen ->
       model ! []
@@ -551,11 +559,6 @@ scrollToActive id model =
       tree = model.document.workingTree.tree
       columns = model.document.workingTree.columns
       activeTree_ = getTree id tree
-      newPast =
-        if (id == vs.active) then
-          vs.activePast
-        else
-          vs.active :: vs.activePast |> List.take 40
     in
     case activeTree_ of
       Just activeTree ->
@@ -583,7 +586,7 @@ scrollToActive id model =
           ( ActivateCards
             ( id
             , getDepth 0 tree id
-            , centerlineIds flatCols allIds newPast
+            , centerlineIds flatCols allIds vs.activePast
             )
           )
 

@@ -302,20 +302,6 @@ activate id model =
             activeTree
               |> getDescendants
               |> List.map .id
-
-          anc =
-            getAscendants model.workingTree.tree activeTree []
-              |> List.map .id
-
-          flatCols =
-            model.workingTree.columns
-              |> List.map (\c -> List.map (\g -> List.map .id g) c)
-              |> List.map List.concat
-
-          allIds =
-            anc
-            ++ [id]
-            ++ desc
         in
         { model
           | viewState =
