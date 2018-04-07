@@ -82,7 +82,7 @@ type alias CollabState =
 -- UPDATE
 
 
-type DocMsg
+type Msg
     = NoOp
     -- === Card Activation ===
 --    | Activate String
@@ -103,41 +103,201 @@ type DocMsg
 --    | Resolve String
 
 
-update : DocMsg -> Model -> ( Model, Cmd DocMsg )
+update : Msg -> Model -> Model
 update msg model =
   case msg of
+    -- === Card Activation ===
+--
+--    Activate id ->
+--      case vs.editing of
+--        Just eid ->
+--          model ! [ sendOut ( GetContent eid ) ]
+--            |> cancelCard
+--            |> activate id
+--
+--        Nothing ->
+--          model ! []
+--            |> activate id
+--
+--    -- === Card Editing  ===
+--
     OpenCard id str ->
-      model ! []
+      model
         |> openCard id str
 
-    NoOp -> model ! []
+--    DeleteCard id ->
+--      model ! []
+--        |> deleteCard id
+--
+--    -- === Card Insertion  ===
+--
+--    InsertAbove id ->
+--      model ! []
+--        |> insertAbove id
+--
+--    InsertBelow id ->
+--      model ! []
+--        |> insertBelow id
+--
+--    InsertChild id ->
+--      model ! []
+--        |> insertChild id
+--
+--    -- === Card Moving  ===
+--
+--    DragDropMsg dragDropMsg ->
+--      let
+--        ( newDragModel, dragResult_ ) =
+--          DragDrop.update dragDropMsg vs.dragModel
+--      in
+--      case (vs.draggedTree, DragDrop.getDragId newDragModel, dragResult_ ) of
+--        -- Start drag
+--        ( Nothing, Just dragId, Nothing ) ->
+--          { model
+--            | workingTree = Trees.update (Trees.Rmv dragId) model.workingTree
+--            , viewState =
+--              { vs
+--                | dragModel = newDragModel
+--                , draggedTree = getTreeWithPosition dragId model.workingTree.tree
+--              }
+--          }
+--          ! []
+--
+--        -- Successful drop
+--        ( Just (draggedTree, _, _), Nothing, Just (dragId, dropId) ) ->
+--          let
+--            moveOperation =
+--              case dropId of
+--                Into id ->
+--                  move draggedTree id 999999
+--
+--                Above id ->
+--                  move draggedTree
+--                    ( ( getParent id model.workingTree.tree |> Maybe.map .id ) ? "0" )
+--                    ( ( getIndex id model.workingTree.tree ? 0 ) |> Basics.max 0 )
+--
+--                Below id ->
+--                  move draggedTree
+--                    ( ( getParent id model.workingTree.tree |> Maybe.map .id ) ? "0" )
+--                    ( ( getIndex id model.workingTree.tree ? 0 ) + 1)
+--          in
+--          { model | viewState =
+--            { vs
+--              | dragModel = newDragModel
+--              , draggedTree = Nothing
+--            }
+--          } ! []
+--            |> moveOperation
+--            |> activate draggedTree.id
+--
+--        -- Failed drop
+--        ( Just (draggedTree, parentId, idx), Nothing, Nothing ) ->
+--          { model | viewState =
+--            { vs
+--              | dragModel = newDragModel
+--              , draggedTree = Nothing
+--            }
+--          } ! []
+--            |> move draggedTree parentId idx
+--            |> activate draggedTree.id
+--
+--        _ ->
+--          { model | viewState = { vs | dragModel = newDragModel } } ! []
+--
+--    -- === History ===
+--
+--    Undo ->
+--      model ! []
+--
+--    Redo ->
+--      model ! []
+--
+--    Sync ->
+--      case (model.status, model.online) of
+--        (Clean _, True) ->
+--          model ! [ sendOut Pull ]
+--
+--        (Bare, True) ->
+--          model ! [ sendOut Pull ]
+--
+--        _ ->
+--          model ! []
+--
+--    SetSelection cid selection id ->
+--      let
+--        newStatus =
+--          case status of
+--            MergeConflict mTree oldHead newHead conflicts ->
+--              conflicts
+--                |> List.map (\c -> if c.id == cid then { c | selection = selection } else c)
+--                |> MergeConflict mTree oldHead newHead
+--
+--            _ ->
+--              status
+--
+--      in
+--      case newStatus of
+--        MergeConflict mTree oldHead newHead conflicts ->
+--          case selection of
+--            Manual ->
+--              { model
+--                | workingTree = Trees.setTreeWithConflicts conflicts mTree model.workingTree
+--                , status = newStatus
+--              }
+--                ! []
+--
+--            _ ->
+--              { model
+--                | workingTree = Trees.setTreeWithConflicts conflicts mTree model.workingTree
+--                , status = newStatus
+--              }
+--                ! []
+--                |> cancelCard
+--                |> activate id
+--
+--        _ ->
+--          model ! []
+--
+--    Resolve cid ->
+--      case status of
+--        MergeConflict mTree shaA shaB conflicts ->
+--          { model
+--            | status = MergeConflict mTree shaA shaB (conflicts |> List.filter (\c -> c.id /= cid))
+--          }
+--            ! []
+--            |> addToHistory
+--
+--        _ ->
+--          model ! []
+--
+    -- === Help ===
+
+    NoOp -> model
 
 
-openCard : String -> String -> ( Model, Cmd DocMsg ) -> ( Model, Cmd DocMsg )
-openCard id str (model, prevCmd) =
-  let
-    vs = model.viewState
-    isLocked =
-      vs.collaborators
-        |> List.filter (\c -> c.mode == Editing id)
-        |> (not << List.isEmpty)
-  in
-  if isLocked then
-    model ! [prevCmd]--, sendOut (Alert "Card is being edited by someone else.")]
+openCard : String -> String -> Model -> Model
+openCard id str model =
+  let vs = model.viewState in
+  if isLocked vs.collaborators id then
+    model
   else
     { model
       | viewState = { vs | active = id, editing = Just id }
     }
-      ! [ prevCmd]--, focus id ]
-      --|> sendCollabState (CollabState model.uid (Editing id) str)
 
+
+isLocked : List CollabState -> String -> Bool
+isLocked collaborators id =
+  collaborators
+    |> List.filter (\c -> c.mode == Editing id)
+    |> (not << List.isEmpty)
 
 
 
 -- VIEW
 
 
-view : Model -> Html DocMsg
+view : Model -> Html Msg
 view {viewState, workingTree} =
   let
     columnsWithDepth =
@@ -176,7 +336,7 @@ view {viewState, workingTree} =
     ( columns
     )
 
-viewColumn : VisibleViewState -> Int -> Column -> Html DocMsg
+viewColumn : VisibleViewState -> Int -> Column -> Html Msg
 viewColumn vstate depth col =
   let
     buffer =
