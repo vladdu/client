@@ -9,7 +9,7 @@ type Msg
     -- === Card Activation ===
     | Activate String
     -- === Card Editing  ===
-    | OpenCard String String
+    --| OpenCard String String
     | DeleteCard String
     -- === Card Insertion  ===
     | InsertAbove String

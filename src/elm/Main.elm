@@ -113,10 +113,6 @@ update msg ({objects, workingTree, status} as model) =
 
     -- === Card Editing  ===
 
-    OpenCard id str ->
-      model ! []
-        |> openCard id str
-
     DeleteCard id ->
       model ! []
         |> deleteCard id
