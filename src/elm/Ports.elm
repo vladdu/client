@@ -238,6 +238,14 @@ receiveMsg tagger onError =
               Err e ->
                 onError e
 
+          "Changed" ->
+            case decodeValue Json.bool outsideInfo.data of
+              Ok isChanged ->
+                tagger <| Changed isChanged
+
+              Err e ->
+                onError e
+
           "FileState" ->
             let decoder = tupleDecoder (Json.maybe Json.string) Json.bool in
             case decodeValue decoder outsideInfo.data of

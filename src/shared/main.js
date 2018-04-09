@@ -811,6 +811,7 @@ const clearDb = (dbname) => {
   )
 }
 
+
 function setLastActive (filename, lastActiveCard) {
   if (filename !== null) {
     userStore.set(`last-active-cards.${filename}`, lastActiveCard);
@@ -845,7 +846,8 @@ window.onresize = () => {
 
 const editingInputHandler = function(ev) {
   if (!changed) {
-    // need to account for changing FileState!
+    changed = true
+    toElm('Changed', true)
   }
   collab.field = ev.target.value
   socket.emit('collab', collab)

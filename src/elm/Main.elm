@@ -486,6 +486,13 @@ update msg ({objects, workingTree, status} as model) =
 
         -- === File System ===
 
+        Changed changed ->
+          { model
+            | changed = changed
+          }
+            ! []
+            |> changeTitle
+
         FileState filepath_ changed ->
           { model
             | filepath = filepath_
