@@ -269,9 +269,9 @@ const update = (msg, data) => {
       /* --- DOM --- */
 
     , 'ActivateCards': () => {
-        setLastActive(currentFile, data[0])
-        shared.scrollHorizontal(data[1])
-        shared.scrollColumns(data[2])
+        setLastActive(data.filepath, data.cardId)
+        shared.scrollHorizontal(data.column)
+        shared.scrollColumns(data.lastActives)
       }
 
     , 'GetContent': () => {

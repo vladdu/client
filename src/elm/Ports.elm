@@ -31,7 +31,7 @@ type OutgoingMsg
     | ExportTXT Bool Tree
     | ExportTXTColumn Int Tree
     -- === DOM ===
-    | ActivateCards (String, Int, List (List String))
+    | ActivateCards (String, Int, List (List String), Maybe String)
     | GetContent String
     | SurroundText String String
     -- === UI ===
@@ -123,7 +123,7 @@ sendOut info =
 
     -- === DOM ===
 
-    ActivateCards (cardId, col, cardIds) ->
+    ActivateCards (cardId, col, lastActives, filepath_) ->
       let
         listListStringToValue lls =
           lls
@@ -131,7 +131,14 @@ sendOut info =
             |> List.map list
             |> list
       in
-      dataToSend ( tripleToValue string int listListStringToValue ( cardId, col, cardIds ) )
+      dataToSend
+        ( object
+            [ ( "cardId", string cardId )
+            , ( "column", int col )
+            , ( "lastActives", listListStringToValue lastActives )
+            , ( "filepath", maybeToValue string filepath_ )
+            ]
+        )
 
     GetContent id ->
       dataToSend ( string id )
