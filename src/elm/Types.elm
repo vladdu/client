@@ -34,6 +34,7 @@ type Msg
 type IncomingMsg
     -- === Dialogs, Menus, Window State ===
     = IntentNew
+    | IntentOpen
     | IntentExit
     | NewConfirmed
     | OpenConfirmed

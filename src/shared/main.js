@@ -356,7 +356,7 @@ gingko.ports.infoForOutside.subscribe(function(elmdata) {
 /* === JS to Elm Ports === */
 
 ipcRenderer.on('menu-new', () => toElm('IntentNew', null))
-ipcRenderer.on('menu-open', () => toElm('Keyboard', 'mod+o'))
+ipcRenderer.on('menu-open', () => toElm('IntentOpen', null))
 ipcRenderer.on('menu-import-json', () => update('Import'))
 ipcRenderer.on('menu-save', () => toElm('Keyboard', 'mod+s'))
 ipcRenderer.on('menu-save-as', () => toElm('Keyboard', 'mod+shift+s'))

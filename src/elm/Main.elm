@@ -287,6 +287,10 @@ update msg ({objects, workingTree, status} as model) =
           model ! []
             |> intentNew
 
+        IntentOpen ->
+          model ! []
+            |> intentOpen
+
         IntentExit ->
           if model.changed then
             model ! [ sendOut ( ConfirmExit model.filepath ) ]
@@ -647,10 +651,7 @@ update msg ({objects, workingTree, status} as model) =
               model |> maybeSaveAndThen intentSaveAs
 
             "mod+o" ->
-              if model.changed then
-                model ! [ sendOut ( ConfirmClose model.filepath OpenConfirmed ) ]
-              else
-                actionOpen model
+              model ! [] |> intentOpen
 
             "mod+b" ->
               case vs.editing of
@@ -1150,6 +1151,14 @@ intentNew (model, prevCmd) =
     model ! [ sendOut ( ConfirmClose model.filepath NewConfirmed ) ]
   else
     actionNew model
+
+
+intentOpen : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+intentOpen (model, prevCmd) =
+  if model.changed then
+    model ! [ sendOut ( ConfirmClose model.filepath OpenConfirmed ) ]
+  else
+    actionOpen model
 
 
 intentSave : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )

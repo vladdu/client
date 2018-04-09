@@ -171,6 +171,9 @@ receiveMsg tagger onError =
           "IntentNew" ->
             tagger <| IntentNew
 
+          "IntentOpen" ->
+            tagger <| IntentOpen
+
           "IntentExit" ->
             tagger <| IntentExit
 
