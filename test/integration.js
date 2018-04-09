@@ -131,3 +131,62 @@ describe('Basic Actions', function () {
     expect(cardText).to.equal("Hello World")
   })
 })
+
+
+describe('Close Confirmations', function () {
+  this.timeout(10000)
+
+  describe('Close Without Saving', function () {
+    let dialogChoice = 0 // Close Without Saving
+    var app, client
+
+    beforeEach(function () {
+      app = new Application({
+        path: electronPath,
+        env: { RUNNING_IN_SPECTRON: '1', DIALOG_CHOICE: dialogChoice },
+        args: ['-r', path.join(__dirname, 'mocks.js'), path.join(__dirname, '../app')]
+      })
+      return app.start().then(async function (result) {
+        client = app.client
+        await client.keys(['Enter']) // Enter Edit mode
+        await client.waitForExist('#card-edit-1', 800) // Wait for Edit mode
+        await client.keys(["Hello World"]) // Type something
+      })
+    })
+
+    it('should close the app', async function(){
+      // Send Exit command, should trigger dialog
+      // Choice 0 = "Close Without Saving"
+      await app.stop()
+      expect(app.isRunning()).to.be.false
+    })
+  })
+
+  describe('Cancel', function () {
+    let dialogChoice = 1 // Cancel
+    var app, client
+
+    beforeEach(function () {
+      app = new Application({
+        path: electronPath,
+        env: { RUNNING_IN_SPECTRON: '1', DIALOG_CHOICE: dialogChoice },
+        args: ['-r', path.join(__dirname, 'mocks.js'), path.join(__dirname, '../app')]
+      })
+      return app.start().then(async function (result) {
+        client = app.client
+        await client.keys(['Enter']) // Enter Edit mode
+        await client.waitForExist('#card-edit-1', 800) // Wait for Edit mode
+        await client.keys(["Hello World"]) // Type something
+      })
+    })
+
+    it('should not close', function(){
+      // Send Exit command, should trigger dialog
+      // Choice 1 = "Cancel"
+      let attemptClose = async function () {
+        await app.stop()
+      }
+      expect(attemptClose).to.throw
+    })
+  })
+})
