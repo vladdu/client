@@ -291,6 +291,12 @@ update msg ({objects, workingTree, status} as model) =
           model ! []
             |> intentOpen
 
+        IntentImport ->
+          if model.changed then
+            model ! [ sendOut ( ConfirmClose model.filepath ImportConfirmed ) ]
+          else
+            actionImport model
+
         IntentExit ->
           if model.changed then
             model ! [ sendOut ( ConfirmExit model.filepath ) ]
@@ -302,6 +308,9 @@ update msg ({objects, workingTree, status} as model) =
 
         OpenConfirmed ->
           actionOpen model
+
+        ImportConfirmed ->
+          actionImport model
 
         CancelCardConfirmed ->
           model ! []
@@ -1171,18 +1180,23 @@ intentSaveAs (model, prevCmd) =
   model ! [ prevCmd, sendOut ( Save Nothing ) ]
 
 
+actionNew : Model -> ( Model, Cmd Msg )
+actionNew model =
+  let clearDB (m, pc) = m ! [pc, sendOut ClearDB] in
+      init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
+          |> maybeColumnsChanged model.workingTree.columns
+          |> changeTitle
+          |> clearDB
+
+
 actionOpen : Model -> ( Model, Cmd Msg )
 actionOpen model =
   model ! [ sendOut ( OpenDialog model.filepath ) ]
 
 
-actionNew : Model -> ( Model, Cmd Msg )
-actionNew model =
-  let clearDB (m, pc) = m ! [pc, sendOut ClearDB] in
-  init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
-    |> maybeColumnsChanged model.workingTree.columns
-    |> changeTitle
-    |> clearDB
+actionImport : Model -> ( Model, Cmd Msg )
+actionImport model =
+  model ! [ sendOut ( ImportDialog model.filepath ) ]
 
 
 changeTitle : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )

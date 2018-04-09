@@ -135,13 +135,23 @@ const update = (msg, data) => {
       }
 
     , 'OpenDialog': async () => {
-        let filepathArray = await openDialogRefactored()
+        let filepathArray = await openDialog()
 
         if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
           var filepathToLoad = filepathArray[0]
-          loadFileRefactored(filepathToLoad)
+          loadFile(filepathToLoad)
         }
       }
+
+    , 'ImportDialog': async () => {
+        let filepathArray = await importDialog()
+
+        if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
+          var filepathToLoad = filepathArray[0]
+          loadFile(filepathToLoad)
+        }
+      }
+
 
     , 'ConfirmClose': async () => {
         let choice = await saveConfirmationDialog()
@@ -308,18 +318,6 @@ const update = (msg, data) => {
         //ReactDOM.render(commitElement, document.getElementById('history'))
     }
 
-    , 'Import': () => {
-        if (saveInProgress) {
-          _.delay(update, 200, 'Import')
-        } else {
-          if (changed) {
-            saveConfirmation(data).then(importDialog)
-          } else {
-            importDialog()
-          }
-        }
-      }
-
     , 'SetVideoModal': () => {
         userStore.set('video-modal-is-open', data)
       }
@@ -357,7 +355,7 @@ gingko.ports.infoForOutside.subscribe(function(elmdata) {
 
 ipcRenderer.on('menu-new', () => toElm('IntentNew', null))
 ipcRenderer.on('menu-open', () => toElm('IntentOpen', null))
-ipcRenderer.on('menu-import-json', () => update('Import'))
+ipcRenderer.on('menu-import-json', () => toElm('IntentImport', null))
 ipcRenderer.on('menu-save', () => toElm('Keyboard', 'mod+s'))
 ipcRenderer.on('menu-save-as', () => toElm('Keyboard', 'mod+shift+s'))
 ipcRenderer.on('menu-export-json', () => gingko.ports.infoForElm.send({tag: 'DoExportJSON', data: null }))
@@ -620,7 +618,7 @@ const saveAsDialog = (pathDefault) => {
 }
 
 
-const openDialogRefactored = (pathDefault) => {
+const openDialog = (pathDefault) => {
   return new Promise(
     (resolve, reject) => {
       var options =
@@ -639,6 +637,29 @@ const openDialogRefactored = (pathDefault) => {
     }
   )
 }
+
+
+const importDialog = () => {
+  return new Promise(
+    (resolve, reject) => {
+      var options =
+        { title: 'Import JSON File...'
+        , defaultPath: pathDefault ? path.dirname(pathDefault) : app.getPath('documents')
+        , properties: ['openFile']
+        , filters:  [ {name: 'Gingko JSON Files (*.json)', extensions: ['json']}
+                    , {name: 'All Files', extensions: ['*']}
+                    ]
+
+        }
+
+      dialog.showOpenDialog(null, options, function(filepathArray){
+        resolve(filepathArray)
+      })
+    }
+  )
+}
+
+
 
 
 const saveConfirmation = (filepath) => {
@@ -724,70 +745,7 @@ const exportTxt = (data) => {
 }
 
 
-const openDialog = () => {
-  dialog.showOpenDialog(
-    null,
-    { title: "Open File..."
-    , defaultPath: currentFile ? path.dirname(currentFile) : app.getPath('documents')
-    , properties: ['openFile']
-    , filters:  [ {name: 'Gingko Files (*.gko)', extensions: ['gko']}
-                , {name: 'All Files', extensions: ['*']}
-                ]
-    }
-    , function(filepathArray) {
-        if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
-          var filepathToLoad = filepathArray[0]
-          if(!!filepathToLoad) {
-            loadFile(filepathToLoad)
-          }
-        }
-      }
-  )
-}
-
-const importDialog = () => {
-  dialog.showOpenDialog(
-    null,
-    { title: "Import JSON File..."
-    , defaultPath: currentFile ? path.dirname(currentFile) : app.getPath('documents')
-    , properties: ['openFile']
-    , filters:  [ {name: 'Gingko JSON files (*.json)', extensions: ['json']}
-                , {name: 'All Files', extensions: ['*']}
-                ]
-    }
-    , function(filepathArray) {
-        var filepathToImport = filepathArray[0]
-        if(!!filepathToImport) {
-          importFile(filepathToImport)
-        }
-      }
-  )
-}
-
-
-const loadFile = (filepathToLoad) => {
-  var rs = fs.createReadStream(filepathToLoad)
-
-  db.destroy().then( res => {
-    if (res.ok) {
-      dbpath = path.join(app.getPath('userData'), sha1(filepathToLoad))
-      self.db = new PouchDB(dbpath, {adapter: 'memory'})
-
-      db.load(rs).then( res => {
-        if (res.ok) {
-          setFileState(false, filepathToLoad)
-          load(filepathToLoad)
-        } else {
-          console.log('db.load res is', res)
-        }
-      }).catch( err => {
-        console.log('file load err', err)
-      })
-    }
-  })
-}
-
-const loadFileRefactored = async (filepath) => {
+const loadFile = async (filepath) => {
   await clearDb(filepath)
 
   let rs = fs.createReadStream(filepath)
@@ -799,6 +757,43 @@ const loadFileRefactored = async (filepath) => {
 
   load(filepath)
 }
+
+
+const importFile = async (filepathToImport) => {
+  await clearDb(filepathToImport)
+
+  let readFile = promisify(readFile)
+
+  let data = await readFile(filepathToImport)
+
+  let nextId = 1
+
+  let seed =
+    JSON.parse(
+      data.toString()
+          .replace( /{(\s*)"content":/g
+                  , s => {
+                      return `{"id":"${nextId++}","content":`
+                    }
+                  )
+    )
+
+  let newRoot =
+    seed.length == 1
+      ?
+        { id: "0"
+        , content: seed[0].content
+        , children: seed[0].children
+        }
+      :
+        { id: "0"
+        , content: path.basename(filepathToImport)
+        , children: seed
+        }
+
+  toElm('ImportJSON', newRoot)
+}
+
 
 const clearDb = (dbname) => {
   return new Promise(
@@ -815,49 +810,6 @@ const clearDb = (dbname) => {
     }
   )
 }
-
-
-const importFile = (filepathToImport) => {
-  fs.readFile(filepathToImport, (err, data) => {
-
-    let nextId = 1
-
-    let seed =
-      JSON.parse(
-        data.toString()
-            .replace( /{(\s*)"content":/g
-                    , s => {
-                        return `{"id":"${nextId++}","content":`
-                      }
-                    )
-      )
-
-    let newRoot =
-      seed.length == 1
-        ?
-          { id: "0"
-          , content: seed[0].content
-          , children: seed[0].children
-          }
-        :
-          { id: "0"
-          , content: path.basename(filepathToImport)
-          , children: seed
-          }
-
-    db.destroy().then( res => {
-      if (res.ok) {
-        dbpath = path.join(app.getPath('userData'), sha1(filepathToImport))
-        self.db = new PouchDB(dbpath, {adapter: 'memory'})
-
-        document.title = `${path.basename(filepathToImport)} - Gingko`
-        setFileState(true, null)
-        gingko.ports.infoForElm.send({tag: 'ImportJSON', data :newRoot})
-      }
-    })
-  })
-}
-
 
 function setLastActive (filename, lastActiveCard) {
   if (filename !== null) {

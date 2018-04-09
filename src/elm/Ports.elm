@@ -13,6 +13,7 @@ type OutgoingMsg
     = Alert String
     | ChangeTitle (Maybe String) Bool
     | OpenDialog (Maybe String)
+    | ImportDialog (Maybe String)
     | ConfirmClose (Maybe String) IncomingMsg
     | ConfirmExit (Maybe String)
     | ConfirmCancelCard String String
@@ -56,6 +57,9 @@ sendOut info =
       dataToSend ( tupleToValue ( maybeToValue string ) bool ( filepath_, changed ) )
 
     OpenDialog filepath_ ->
+      dataToSend ( maybeToValue string filepath_ )
+
+    ImportDialog filepath_ ->
       dataToSend ( maybeToValue string filepath_ )
 
     ConfirmClose filepath_ callbackMsg ->
@@ -173,6 +177,9 @@ receiveMsg tagger onError =
 
           "IntentOpen" ->
             tagger <| IntentOpen
+
+          "IntentImport" ->
+            tagger <| IntentImport
 
           "IntentExit" ->
             tagger <| IntentExit
