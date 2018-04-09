@@ -30,7 +30,12 @@ describe('Application Start', function () {
     expect(windowCount).to.be.equal(1)
   })
 
-  it('should show dev tools when going to "Help > Show Dev Tools"', async function () {
+  it('has title "Untitled Tree - Gingko"', async function () {
+    let windowTitle = await app.browserWindow.getTitle()
+    expect(windowTitle).to.equal("Untitled Tree - Gingko")
+  })
+
+  it('shows dev tools when going to "Help > Show Dev Tools"', async function () {
     robot.keyTap('h', 'alt')
     robot.keyTap('d')
     await client.pause(200)
@@ -87,7 +92,7 @@ describe('Basic Actions', function () {
   after(async function () {
     if (app && app.isRunning()) {
       app.stop()
-      robot.moveMouse(818, 561)
+      robot.moveMouse(818, 581)
       await client.pause(500)
       robot.mouseClick()
     }
@@ -108,6 +113,11 @@ describe('Basic Actions', function () {
     await client.keys(["Hello World"])
     const textareaValue = await client.getValue('#card-edit-1')
     expect(textareaValue).to.equal("Hello World")
+  })
+
+  it('should have title "*Untitled Tree - Gingko"', async function () {
+    let windowTitle = await app.browserWindow.getTitle()
+    expect(windowTitle).to.equal("*Untitled Tree - Gingko")
   })
 
   it('should switch to navigation mode when pressing Ctrl+Enter', async function () {
