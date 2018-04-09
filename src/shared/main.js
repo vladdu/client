@@ -814,13 +814,13 @@ const clearDb = (dbname) => {
 
 function setLastActive (filename, lastActiveCard) {
   if (filename !== null) {
-    userStore.set(`last-active-cards.${filename}`, lastActiveCard);
+    userStore.set(`last-active-cards.${filename.replace('.', '\\.')}`, lastActiveCard);
   }
 }
 
 
 function getLastActive (filename) {
-  let lastActiveCard = userStore.get(`last-active-cards.${filename}`)
+  let lastActiveCard = userStore.get(`last-active-cards.${filename.replace('.', '\\.')}`)
   if (typeof lastActiveCard === "undefined") {
     return null
   } else {
