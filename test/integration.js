@@ -3,6 +3,7 @@ const {expect} = require('chai')
 const electronPath = require('electron') // Require Electron from the binaries included in node_modules.
 const path = require('path')
 const robot = require('robotjs')
+const { execSync } = require('child_process')
 
 describe('Application Start', function () {
   this.timeout(10000)
@@ -133,7 +134,7 @@ describe('Basic Actions', function () {
 })
 
 
-describe('Close Confirmations', function () {
+describe('"Save Changes?" Confirmations', function () {
   this.timeout(10000)
 
   describe('Close Without Saving', function () {
@@ -144,13 +145,15 @@ describe('Close Confirmations', function () {
       app = new Application({
         path: electronPath,
         env: { RUNNING_IN_SPECTRON: '1', DIALOG_CHOICE: dialogChoice },
-        args: ['-r', path.join(__dirname, 'mocks.js'), path.join(__dirname, '../app')]
+        args: ['-r', path.join(__dirname, 'mocks.js'), path.join(__dirname, '../app')],
+        quitTimeout: 10
       })
       return app.start().then(async function (result) {
         client = app.client
         await client.keys(['Enter']) // Enter Edit mode
         await client.waitForExist('#card-edit-1', 800) // Wait for Edit mode
         await client.keys(["Hello World"]) // Type something
+        await client.pause(800)
       })
     })
 
@@ -180,13 +183,56 @@ describe('Close Confirmations', function () {
       })
     })
 
-    it('should not close', function(){
+    afterEach(function () {
+      if (app && app.isRunning()) {
+        return app.stop().then( () => {
+          execSync('pkill electron; pkill electron')
+        })
+      }
+    })
+
+    it('should not close', async function(){
       // Send Exit command, should trigger dialog
       // Choice 1 = "Cancel"
-      let attemptClose = async function () {
-        await app.stop()
+      robot.keyTap('f', 'alt')
+      robot.keyTap('x')
+      const textareaValue = await client.getValue('#card-edit-1')
+      expect(textareaValue).to.be.equal("Hello World")
+    })
+  })
+
+  describe('Save', function () {
+    let dialogChoice = 2 // Save
+    var app, client
+
+    beforeEach(function () {
+      app = new Application({
+        path: electronPath,
+        env: { RUNNING_IN_SPECTRON: '1', DIALOG_CHOICE: dialogChoice },
+        args: ['-r', path.join(__dirname, 'mocks.js'), path.join(__dirname, '../app')]
+      })
+      return app.start().then(async function (result) {
+        client = app.client
+        await client.keys(['Enter']) // Enter Edit mode
+        await client.waitForExist('#card-edit-1', 800) // Wait for Edit mode
+        await client.keys(["Hello World"]) // Type something
+      })
+    })
+
+    afterEach(function () {
+      if (app && app.isRunning()) {
+        return app.stop().then( () => {
+          execSync('pkill electron; pkill electron')
+        })
       }
-      expect(attemptClose).to.throw
+    })
+
+    it('should bring up save dialog', async function(){
+      // Send Exit command, should trigger dialog
+      // Choice 2 = "Save"
+      robot.keyTap('f', 'alt')
+      robot.keyTap('x')
+      await client.pause(4000)
     })
   })
 })

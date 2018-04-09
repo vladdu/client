@@ -152,6 +152,7 @@ app.on('window-all-closed', () => {
   // On macOS it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
   if (process.platform !== 'darwin') {
+    console.log('at window-all-closed')
     app.quit()
   }
 })
@@ -257,7 +258,7 @@ function createSerialWindow(shouldBlock) {
 /* ==== Menu ==== */
 
 function menuFunction(cols) {
-  return [ { label: 'File'
+  return [ { label: '&File'
     , submenu:
         [ { label: 'New'
           , accelerator: 'CmdOrCtrl+N'
@@ -300,7 +301,7 @@ function menuFunction(cols) {
           , submenu : exportMenu(cols)
           }
         , { type: 'separator' }
-        , { label: 'Exit...'
+        , { label: 'E&xit...'
           , role: 'quit'
           }
         ]

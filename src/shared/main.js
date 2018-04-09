@@ -59,6 +59,7 @@ userStore.getWithDefault = function (key, def) {
 
 const mock = require('../../test/mocks.js')
 if(process.env.RUNNING_IN_SPECTRON) {
+  console.log('in mock branch')
   mock(dialog, process.env.DIALOG_CHOICE)
 }
 
