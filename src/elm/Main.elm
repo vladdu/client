@@ -283,6 +283,16 @@ update msg ({objects, workingTree, status} as model) =
       case incomingMsg of
         -- === Dialogs, Menus, Window State ===
 
+        IntentNew ->
+          model ! []
+            |> intentNew
+
+        IntentExit ->
+          if model.changed then
+            model ! [ sendOut ( ConfirmExit model.filepath ) ]
+          else
+            model ! [ sendOut Exit ]
+
         NewConfirmed ->
           actionNew model
 
@@ -292,12 +302,6 @@ update msg ({objects, workingTree, status} as model) =
         CancelCardConfirmed ->
           model ! []
             |> cancelCard
-
-        IntentExit ->
-          if model.changed then
-            model ! [ sendOut ( ConfirmExit model.filepath ) ]
-          else
-            model ! [ sendOut Exit ]
 
         DoExportJSON ->
           model
@@ -634,10 +638,7 @@ update msg ({objects, workingTree, status} as model) =
               model ! []
 
             "mod+n" ->
-              if model.changed then
-                model ! [ sendOut ( ConfirmClose model.filepath NewConfirmed ) ]
-              else
-                actionNew model
+              model ! [] |> intentNew
 
             "mod+s" ->
               model |> maybeSaveAndThen intentSave
@@ -1142,6 +1143,14 @@ addToHistory ({workingTree} as model, prevCmd) =
 
 
 -- === Files ===
+
+intentNew : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+intentNew (model, prevCmd) =
+  if model.changed then
+    model ! [ sendOut ( ConfirmClose model.filepath NewConfirmed ) ]
+  else
+    actionNew model
+
 
 intentSave : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 intentSave (model, prevCmd) =

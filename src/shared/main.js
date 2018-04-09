@@ -38,10 +38,8 @@ window.Elm = require('../elm/Main')
 
 var currentFile = null
 var changed = false
-var saveInProgress = false
 var field = null
 var editing = null
-var currentSwap = null
 var lastCenterline = null
 var lastColumnIdx = null
 var collab = {}
@@ -357,7 +355,7 @@ gingko.ports.infoForOutside.subscribe(function(elmdata) {
 
 /* === JS to Elm Ports === */
 
-ipcRenderer.on('menu-new', () => toElm('Keyboard', 'mod+n'))
+ipcRenderer.on('menu-new', () => toElm('IntentNew', null))
 ipcRenderer.on('menu-open', () => toElm('Keyboard', 'mod+o'))
 ipcRenderer.on('menu-import-json', () => update('Import'))
 ipcRenderer.on('menu-save', () => toElm('Keyboard', 'mod+s'))

@@ -168,14 +168,17 @@ receiveMsg tagger onError =
   infoForElm
     (\outsideInfo ->
         case outsideInfo.tag of
+          "IntentNew" ->
+            tagger <| IntentNew
+
+          "IntentExit" ->
+            tagger <| IntentExit
+
           "NewConfirmed" ->
             tagger <| NewConfirmed
 
           "OpenConfirmed" ->
             tagger <| OpenConfirmed
-
-          "IntentExit" ->
-            tagger <| IntentExit
 
           "ContentIn" ->
             case decodeValue ( tupleDecoder Json.string Json.string ) outsideInfo.data of

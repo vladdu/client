@@ -33,10 +33,11 @@ type Msg
 
 type IncomingMsg
     -- === Dialogs, Menus, Window State ===
-    = NewConfirmed
+    = IntentNew
+    | IntentExit
+    | NewConfirmed
     | OpenConfirmed
     | CancelCardConfirmed
-    | IntentExit
     | DoExportJSON
     | DoExportTXT
     | DoExportTXTCurrent
