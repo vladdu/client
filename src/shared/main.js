@@ -60,7 +60,11 @@ userStore.getWithDefault = function (key, def) {
 const mock = require('../../test/mocks.js')
 if(process.env.RUNNING_IN_SPECTRON) {
   console.log('in mock branch')
-  mock(dialog, process.env.DIALOG_CHOICE, process.env.DIALOG_SAVE_PATH)
+  mock(dialog
+      , process.env.DIALOG_CHOICE
+      , process.env.DIALOG_SAVE_PATH
+      , [process.env.DIALOG_OPEN_PATH]
+      )
 }
 
 
@@ -614,9 +618,8 @@ const openDialog = (pathDefault) => {
 
         }
 
-      dialog.showOpenDialog(null, options, function(filepathArray){
-        resolve(filepathArray)
-      })
+      let filepathArray = dialog.showOpenDialog(options)
+      resolve(filepathArray)
     }
   )
 }

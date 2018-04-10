@@ -83,7 +83,11 @@ describe('Basic Actions', function () {
   before(function () {
     app = new Application({
       path: electronPath,
-      args: [path.join(__dirname, '../app')]
+      env:
+        { RUNNING_IN_SPECTRON: '1'
+        , DIALOG_CHOICE: 0 // Close Without Saving
+        },
+      args: ['-r', path.join(__dirname, 'mocks.js'), path.join(__dirname, '../app')]
     })
     return app.start().then(function (result) {
       client = app.client
@@ -91,14 +95,9 @@ describe('Basic Actions', function () {
   })
 
   // Close app after all tests have run.
-  // Hack to click "Close without saving" in "Save changes?" dialog.
-  // Platform and distro dependant!
   after(async function () {
     if (app && app.isRunning()) {
-      app.stop()
-      robot.moveMouse(818, 581)
-      await client.pause(500)
-      robot.mouseClick()
+      await app.stop()
     }
   })
 
@@ -137,17 +136,22 @@ describe('Basic Actions', function () {
 })
 
 
-describe('Close Confirmations', function () {
+describe('Close Confirmations', function () { // Close Without Saving
   this.timeout(10000)
 
   describe('Close Without Saving', function () {
     let dialogChoice = 0 // Close Without Saving
+    let filepath = path.join(__dirname, 'testfile-close-confirmation-open.gko')
     var app, client
 
     beforeEach(function () {
       app = new Application({
         path: electronPath,
-        env: { RUNNING_IN_SPECTRON: '1', DIALOG_CHOICE: dialogChoice },
+        env:
+          { RUNNING_IN_SPECTRON: '1'
+          , DIALOG_CHOICE: dialogChoice
+          , DIALOG_OPEN_PATH: filepath
+          },
         args: ['-r', path.join(__dirname, 'mocks.js'), path.join(__dirname, '../app')],
         quitTimeout: 10
       })
@@ -160,15 +164,55 @@ describe('Close Confirmations', function () {
       })
     })
 
-    it('should discard the changes and close the app', async function(){
-      // Send Exit command, should trigger dialog
-      // Choice 0 = "Close Without Saving"
-      await app.stop()
-      expect(app.isRunning()).to.be.false
+    afterEach(function () {
+      if (app && app.isRunning()) {
+        return app.stop()
+      }
     })
 
-    it('should discard the changes and create a new file')
-    it('should discard the changes and load requested file')
+    describe('Exit', function () {
+      it('should discard the changes and close the app', async function(){
+        // Send Exit command, should trigger dialog
+        // Choice 0 = "Close Without Saving"
+        await app.stop()
+        expect(app.isRunning()).to.be.false
+      })
+    })
+
+    describe('New', function () {
+      beforeEach(function() {
+        robot.keyTap('n', 'control')
+      })
+
+      it('should discard the changes', async function() {
+        let cardText = await client.getText('#card-1 .view')
+        expect(cardText).to.equal("")
+      })
+
+      it('should reset the title', async function() {
+        let windowTitle = await app.browserWindow.getTitle()
+        expect(windowTitle).to.equal("Untitled Tree - Gingko")
+      })
+    })
+
+    describe('Open', function() {
+      beforeEach(function() {
+        robot.keyTap('o', 'control')
+      })
+
+      it('should discard the changes', async function() {
+        await client.waitForExist('#card-1 .view', 500)
+        let cardText = await client.getText('#card-1 .view')
+        await client.pause(500)
+        expect(cardText).to.equal("")
+      })
+
+      it('should set the title based on loaded file', async function() {
+        await client.pause(500)
+        let windowTitle = await app.browserWindow.getTitle()
+        expect(windowTitle).to.equal(`${path.basename(filepath)} - Gingko`)
+      })
+    })
     it('should discard the changes and import requested file')
   })
 
@@ -198,24 +242,39 @@ describe('Close Confirmations', function () {
       }
     })
 
-    it('should not close', async function(){
-      // Send Exit command, should trigger dialog
-      // Choice 1 = "Cancel"
-      robot.keyTap('f', 'alt')
-      robot.keyTap('x')
-      const textareaValue = await client.getValue('#card-edit-1')
-      expect(textareaValue).to.be.equal("Hello World")
+    describe('Exit', function () {
+      it('should not close', async function(){
+        // Send Exit command, should trigger dialog
+        // Choice 1 = "Cancel"
+        robot.keyTap('q', 'control')
+        const textareaValue = await client.getValue('#card-edit-1')
+        expect(textareaValue).to.be.equal("Hello World")
+      })
     })
 
+    describe('New', function () {
+      beforeEach(function() {
+        robot.keyTap('n', 'control')
+      })
 
-    it('should not create a new file')
+      it('should not discard the changes', async function() {
+        const textareaValue = await client.getValue('#card-edit-1')
+        expect(textareaValue).to.be.equal("Hello World")
+      })
+
+      it('should not change the title', async function() {
+        await client.pause(500)
+        let windowTitle = await app.browserWindow.getTitle()
+        expect(windowTitle).to.equal(`*Untitled Tree - Gingko`)
+      })
+    })
     it('should not load requested file')
     it('should not import requested file')
   })
 
   describe('Save', function () {
     let dialogChoice = 2 // Save
-    let filepath = path.join(__dirname, 'testfile-close-confirmaton-save.gko')
+    let filepath = path.join(__dirname, 'testfile-close-confirmation-save.gko')
     var app, client
 
     beforeEach(function () {
