@@ -4,6 +4,9 @@ const electronPath = require('electron') // Require Electron from the binaries i
 const path = require('path')
 const robot = require('robotjs')
 const { execSync } = require('child_process')
+const fs = require('fs')
+const { unlink } = require('fs')
+const { promisify } = require('util')
 
 describe('Application Start', function () {
   this.timeout(10000)
@@ -134,7 +137,7 @@ describe('Basic Actions', function () {
 })
 
 
-describe('"Save Changes?" Confirmations', function () {
+describe('Close Confirmations', function () {
   this.timeout(10000)
 
   describe('Close Without Saving', function () {
@@ -157,12 +160,16 @@ describe('"Save Changes?" Confirmations', function () {
       })
     })
 
-    it('should close the app', async function(){
+    it('should discard the changes and close the app', async function(){
       // Send Exit command, should trigger dialog
       // Choice 0 = "Close Without Saving"
       await app.stop()
       expect(app.isRunning()).to.be.false
     })
+
+    it('should discard the changes and create a new file')
+    it('should discard the changes and load requested file')
+    it('should discard the changes and import requested file')
   })
 
   describe('Cancel', function () {
@@ -199,16 +206,26 @@ describe('"Save Changes?" Confirmations', function () {
       const textareaValue = await client.getValue('#card-edit-1')
       expect(textareaValue).to.be.equal("Hello World")
     })
+
+
+    it('should not create a new file')
+    it('should not load requested file')
+    it('should not import requested file')
   })
 
   describe('Save', function () {
     let dialogChoice = 2 // Save
+    let filepath = path.join(__dirname, 'testfile-close-confirmaton-save.gko')
     var app, client
 
     beforeEach(function () {
       app = new Application({
         path: electronPath,
-        env: { RUNNING_IN_SPECTRON: '1', DIALOG_CHOICE: dialogChoice },
+        env:
+          { RUNNING_IN_SPECTRON: '1'
+          , DIALOG_CHOICE: dialogChoice
+          , DIALOG_SAVE_PATH: filepath
+          },
         args: ['-r', path.join(__dirname, 'mocks.js'), path.join(__dirname, '../app')]
       })
       return app.start().then(async function (result) {
@@ -219,20 +236,32 @@ describe('"Save Changes?" Confirmations', function () {
       })
     })
 
-    afterEach(function () {
-      if (app && app.isRunning()) {
-        return app.stop().then( () => {
-          execSync('pkill electron; pkill electron')
-        })
-      }
+    // Doesn't exit properly
+    afterEach(function (done) {
+      fs.unlink(filepath, function(err) {
+        if (err) return done(err)
+        done()
+      })
     })
 
-    it('should bring up save dialog', async function(){
+    it('should save the changes and exit', async function(){
       // Send Exit command, should trigger dialog
       // Choice 2 = "Save"
       robot.keyTap('f', 'alt')
+      await client.pause(40)
       robot.keyTap('x')
-      await client.pause(4000)
+
+      await client.pause(800)
+
+      let checkfile = function() {
+        fs.accessSync(filepath)
+      }
+      expect(checkfile).to.not.throw()
     })
+
+
+    it('should save the changes and create a new file')
+    it('should save the changes and load requested file')
+    it('should save the changes and import requested file')
   })
 })

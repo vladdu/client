@@ -60,7 +60,7 @@ userStore.getWithDefault = function (key, def) {
 const mock = require('../../test/mocks.js')
 if(process.env.RUNNING_IN_SPECTRON) {
   console.log('in mock branch')
-  mock(dialog, process.env.DIALOG_CHOICE)
+  mock(dialog, process.env.DIALOG_CHOICE, process.env.DIALOG_SAVE_PATH)
 }
 
 
@@ -180,7 +180,7 @@ const update = (msg, data) => {
           app.exit()
         } else if (choice == 2) {
           // "Save and then Exit"
-          let savePath = data.filepath ? data.filepath : await saveAsDialog()
+          let savePath = data ? data : await saveAsDialog()
           await save(savePath)
           app.exit()
         }
@@ -561,27 +561,6 @@ self.save = (filepath) => {
 }
 
 
-const saveAs = () => {
-  return new Promise(
-    (resolve, reject) => {
-      var options =
-        { title: 'Save As'
-        , defaultPath: currentFile ? currentFile.replace('.gko', '') : path.join(app.getPath('documents'),"Untitled.gko")
-        , filters:  [ {name: 'Gingko Files (*.gko)', extensions: ['gko']}
-                    , {name: 'All Files', extensions: ['*']}
-                    ]
-        }
-
-      dialog.showSaveDialog(options, function(filepath){
-        if(typeof filepath !== 'undefined'){
-          resolve(save(filepath))
-        }
-      })
-    }
-  )
-}
-
-
 const saveConfirmationDialog = async () => {
   let options =
     { title: "Save changes"
@@ -615,11 +594,8 @@ const saveAsDialog = (pathDefault) => {
                     ]
         }
 
-      dialog.showSaveDialog(options, function(filepath){
-        if(typeof filepath !== 'undefined'){
-          resolve(filepath)
-        }
-      })
+      let filepath = dialog.showSaveDialog(options)
+      resolve(filepath)
     }
   )
 }
@@ -667,33 +643,6 @@ const importDialog = () => {
 }
 
 
-
-
-const saveConfirmation = (filepath) => {
-  return new Promise(
-    (resolve, reject) => {
-      let options =
-        { title: "Save changes"
-        , message: "Save changes before closing?"
-        , buttons: ["Close Without Saving", "Cancel", "Save"]
-        , defaultId: 2
-        }
-      let choice = dialog.showMessageBox(options)
-
-      if (choice == 0) {
-        resolve(filepath)
-      } else if (choice == 2) {
-        if(filepath !== null) {
-          resolve(save(filepath))
-        } else {
-          resolve(saveAs())
-        }
-      }
-    }
-  )
-}
-
-
 const exportJson = (data) => {
   return new Promise(
     (resolve, reject) => {
@@ -722,7 +671,7 @@ const exportJson = (data) => {
 const exportTxt = (data) => {
   return new Promise(
     (resolve, reject) => {
-      
+
       if (data && typeof data.replace === 'function') {
         data = (process.platform === "win32") ? data.replace(/\n/g, '\r\n') : data;
       } else {
