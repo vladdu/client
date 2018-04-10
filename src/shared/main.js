@@ -141,6 +141,12 @@ const update = (msg, data) => {
       /* --- Dialogs, Menus, Window State --- */
       'Alert': () => { alert(data) }
 
+    , 'MessageBox': () => {
+        let options = _.omit(data, 'callback')
+        let choice = dialog.showMessageBox(options)
+        toElm(data.callback, choice)
+      }
+
     , 'ChangeTitle': () => {
         document.title = `${data[1] ? "*" : ""}${data[0] ? path.basename(data[0]) : "Untitled Tree"} - Gingko`
       }

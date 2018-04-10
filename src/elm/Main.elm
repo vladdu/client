@@ -303,6 +303,24 @@ update msg ({objects, workingTree, status} as model) =
           else
             model ! [ sendOut Exit ]
 
+        ConfirmNew choice ->
+          case choice of
+            0 -> actionNew model
+            1 -> model ! []
+            2 ->
+              case model.viewState.editing of
+                Nothing ->
+                  model ! []
+                  -- Save and then New
+
+                Just eid ->
+                  model ! []
+                  -- GetContent
+                  -- Save and then New
+
+            _ ->
+              Debug.crash "Invalid choice for ConfirmNew dialog."
+
         NewConfirmed ->
           actionNew model
 
@@ -552,7 +570,7 @@ update msg ({objects, workingTree, status} as model) =
           case shortcut of
             "mod+x" ->
               let _ = Debug.log "model" model in
-              model ! []
+              model ! [ sendOut ( MessageBox ( MessageBoxOptions "Hi" "You" ["yes", "no"] 0 ( ConfirmNew 0 ) ) ) ]
 
             "mod+enter" ->
               case vs.editing of
