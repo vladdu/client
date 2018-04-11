@@ -291,14 +291,12 @@ update msg ({objects, workingTree, status} as model) =
           intentImport model
 
         IntentExport exportSettings ->
-          let _ = Debug.log "exportSettings" exportSettings in
           case exportSettings.format of
             JSON ->
               case exportSettings.selection of
                 All ->
                   model
-                    |> (if vs.editing /= Nothing then saveCardToTree else identity)
-                    |> (if vs.editing /= Nothing then commitToHistory else identity)
+                    |> saveCardToTree
                     *>
                       [ \m -> sendOut ( ExportJSON m.workingTree.tree ) ]
 
@@ -308,22 +306,19 @@ update msg ({objects, workingTree, status} as model) =
               case exportSettings.selection of
                 All ->
                   model
-                    |> (if vs.editing /= Nothing then saveCardToTree else identity)
-                    |> (if vs.editing /= Nothing then commitToHistory else identity)
+                    |> saveCardToTree
                     *>
                       [ \m -> sendOut ( ExportTXT False m.workingTree.tree ) ]
 
                 CurrentSubtree ->
                   model
-                    |> (if vs.editing /= Nothing then saveCardToTree else identity)
-                    |> (if vs.editing /= Nothing then commitToHistory else identity)
+                    |> saveCardToTree
                     *>
                       [ \m -> sendOut ( ExportTXT True m.workingTree.tree ) ]
 
                 ColumnNumber col ->
                   model
-                    |> (if vs.editing /= Nothing then saveCardToTree else identity)
-                    |> (if vs.editing /= Nothing then commitToHistory else identity)
+                    |> saveCardToTree
                     *>
                       [ \m -> sendOut ( ExportTXTColumn col m.workingTree.tree ) ]
 
