@@ -312,7 +312,7 @@ update msg ({objects, workingTree, status} as model) =
 
         IntentExport exportSettings ->
           let _ = Debug.log "exportSettings" exportSettings in
-          model ! [] 
+          model ! []
 
         CancelCardConfirmed ->
           model ! []
@@ -656,7 +656,7 @@ update msg ({objects, workingTree, status} as model) =
               model ! []
 
             "mod+n" ->
-              intentNew model 
+              intentNew model
 
             "mod+s" ->
               model ! []
