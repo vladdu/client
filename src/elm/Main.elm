@@ -288,10 +288,7 @@ update msg ({objects, workingTree, status} as model) =
           intentOpen model
 
         IntentImport ->
-          if model.changed then
-            model ! [ sendOut ( ConfirmClose "Import" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
-          else
-            actionImport model
+          intentImport model
 
         New ->
           actionNew model
