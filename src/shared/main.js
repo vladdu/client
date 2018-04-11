@@ -462,7 +462,7 @@ const load = function(filepath, headOverride){
         }
 
         let toSend = [filepath, [status, { commits: commits, treeObjects: trees, refs: refs}], getLastActive(filepath)];
-        toElm("Load", toSend);
+        toElm("Open", toSend);
       }).catch(function (err) {
         console.log(err)
       })
