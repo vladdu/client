@@ -290,6 +290,53 @@ update msg ({objects, workingTree, status} as model) =
         IntentImport ->
           intentImport model
 
+        IntentExport exportSettings ->
+          let _ = Debug.log "exportSettings" exportSettings in
+          case exportSettings.format of
+            JSON ->
+              case exportSettings.selection of
+                All ->
+                  model
+                    |> (if vs.editing /= Nothing then saveCardToTree else identity)
+                    |> (if vs.editing /= Nothing then commitToHistory else identity)
+                    *>
+                      [ \m -> sendOut ( ExportJSON m.workingTree.tree ) ]
+
+                _ -> model ! []
+
+            TXT ->
+              case exportSettings.selection of
+                All ->
+                  model
+                    |> (if vs.editing /= Nothing then saveCardToTree else identity)
+                    |> (if vs.editing /= Nothing then commitToHistory else identity)
+                    *>
+                      [ \m -> sendOut ( ExportTXT False m.workingTree.tree ) ]
+
+                CurrentSubtree ->
+                  model
+                    |> (if vs.editing /= Nothing then saveCardToTree else identity)
+                    |> (if vs.editing /= Nothing then commitToHistory else identity)
+                    *>
+                      [ \m -> sendOut ( ExportTXT True m.workingTree.tree ) ]
+
+                ColumnNumber col ->
+                  model
+                    |> (if vs.editing /= Nothing then saveCardToTree else identity)
+                    |> (if vs.editing /= Nothing then commitToHistory else identity)
+                    *>
+                      [ \m -> sendOut ( ExportTXTColumn col m.workingTree.tree ) ]
+
+        IntentExit ->
+          if model.changed then
+            model ! [ sendOut ( ConfirmExit model.filepath ) ]
+          else
+            model ! [ sendOut Exit ]
+
+        CancelCardConfirmed ->
+          model ! []
+            |> cancelCard
+
         New ->
           actionNew model
 
@@ -303,20 +350,6 @@ update msg ({objects, workingTree, status} as model) =
             |> commitToHistory
             *>
               [ sendSaveAnd ]
-
-        IntentExit ->
-          if model.changed then
-            model ! [ sendOut ( ConfirmExit model.filepath ) ]
-          else
-            model ! [ sendOut Exit ]
-
-        IntentExport exportSettings ->
-          let _ = Debug.log "exportSettings" exportSettings in
-          model ! []
-
-        CancelCardConfirmed ->
-          model ! []
-            |> cancelCard
 
 {-
         DoExportJSON ->
