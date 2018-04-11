@@ -1361,30 +1361,37 @@ addToHistory ({workingTree} as model, prevCmd) =
 
 -- === Files ===
 
-intentNew : Model -> ( Model, Cmd Msg )
-intentNew model =
+
+saveChangesDialog : String -> ( Model -> ( Model, Cmd Msg ) ) -> Model -> ( Model, Cmd Msg )
+saveChangesDialog actionId actionFunction model =
+  let
+    (status, objects) = ( statusToValue model.status, Objects.toValue model.objects )
+  in
   case (model.changed, model.viewState.editing) of
     ( False, _ ) ->
-      actionNew model
+      actionFunction model
 
     ( True, Nothing ) ->
-      model ! [ sendOut ( ConfirmClose "New" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
+      model ! [ sendOut ( ConfirmClose actionId model.filepath (status, objects) ) ]
 
     ( True, Just eid ) ->
-      model ! [ sendOut ( ConfirmClose "NewFromEditMode" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
+      model ! [ sendOut ( ConfirmClose (actionId ++ "FromEditMode") model.filepath (status, objects) ) ]
+
+
+
+intentNew : Model -> ( Model, Cmd Msg )
+intentNew model =
+  saveChangesDialog "New" actionNew model
 
 
 intentOpen : Model -> ( Model, Cmd Msg )
 intentOpen model =
-  case (model.changed, model.viewState.editing) of
-    ( False, _ ) ->
-      actionOpen model
+  saveChangesDialog "Open" actionOpen model
 
-    ( True, Nothing ) ->
-      model ! [ sendOut ( ConfirmClose "Open" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
 
-    ( True, Just eid ) ->
-      model ! [ sendOut ( ConfirmClose "OpenFromEditMode" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
+intentImport : Model -> ( Model, Cmd Msg )
+intentImport model =
+  saveChangesDialog "Import" actionImport model
 
 
 intentSave : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
