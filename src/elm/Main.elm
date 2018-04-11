@@ -103,10 +103,12 @@ update msg ({objects, workingTree, status} as model) =
     -- === Card Activation ===
 
     Activate id ->
-      model ! []
-        |> saveContentIfEditing
-        |> cancelCard
-        |> activate id
+      model
+        |> saveContentIfEditingNoCmds
+        |> cancelCardNoCmds
+        |> activateNoCmds id
+        *>
+          [ activateCmds id ]
 
     -- === Card Editing  ===
 
@@ -742,6 +744,91 @@ update msg ({objects, workingTree, status} as model) =
 
 -- === Card Activation ===
 
+activateNoCmds : String -> Model -> Model
+activateNoCmds id model =
+  let vs = model.viewState in
+  if id == "0" then
+    model
+  else
+    let
+      activeTree_ = getTree id model.workingTree.tree
+      newPast =
+        if (id == vs.active) then
+          vs.activePast
+        else
+          vs.active :: vs.activePast |> List.take 40
+    in
+    case activeTree_ of
+      Just activeTree ->
+        let
+          desc =
+            activeTree
+              |> getDescendants
+              |> List.map .id
+        in
+        { model
+          | viewState =
+              { vs
+                | active = id
+                , activePast = newPast
+                , activeFuture = []
+                , descendants = desc
+              }
+        }
+
+      Nothing ->
+        model
+
+
+activateCmds : String -> Model -> Cmd Msg
+activateCmds id model =
+  let vs = model.viewState in
+  if id == "0" then
+    Cmd.none
+  else
+    let
+      activeTree_ = getTree id model.workingTree.tree
+      newPast =
+        if (id == vs.active) then
+          vs.activePast
+        else
+          vs.active :: vs.activePast |> List.take 40
+    in
+    case activeTree_ of
+      Just activeTree ->
+        let
+          desc =
+            activeTree
+              |> getDescendants
+              |> List.map .id
+
+          anc =
+            getAncestors model.workingTree.tree activeTree []
+              |> List.map .id
+
+          flatCols =
+            model.workingTree.columns
+              |> List.map (\c -> List.map (\g -> List.map .id g) c)
+              |> List.map List.concat
+
+          allIds =
+            anc
+            ++ [id]
+            ++ desc
+        in
+        sendOut
+          ( ActivateCards
+            ( id
+            , getDepth 0 model.workingTree.tree id
+            , centerlineIds flatCols allIds newPast
+            , model.filepath
+            )
+          )
+
+      Nothing ->
+        Cmd.none
+
+
 activate : String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 activate id (model, prevCmd) =
   let vs = model.viewState in
@@ -874,6 +961,24 @@ goRight id (model, prevCmd) =
 
 -- === Card Editing  ===
 
+saveContentIfEditingNoCmds : Model -> Model
+saveContentIfEditingNoCmds model =
+  case model.viewState.editing of
+    Just id ->
+      let
+        newTree = Trees.update (Trees.Upd id model.field) model.workingTree
+      in
+      if newTree.tree /= model.workingTree.tree then
+        { model
+          | workingTree = newTree
+        }
+      else
+        model
+
+    Nothing ->
+      model
+
+
 saveContentIfEditing : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 saveContentIfEditing (model, prevCmd) =
   case model.viewState.editing of
@@ -960,6 +1065,14 @@ deleteCard id (model, prevCmd) =
       |> maybeColumnsChanged model.workingTree.columns
       |> activate nextToActivate
       |> addToHistory
+
+
+cancelCardNoCmds : Model -> Model
+cancelCardNoCmds model =
+  let vs = model.viewState in
+  { model
+    | viewState = { vs | editing = Nothing }
+  }
 
 
 cancelCard : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -1347,6 +1460,16 @@ subscriptions model =
 
 
 -- HELPERS
+
+(*>) : model -> List ( model -> Cmd msg ) -> ( model, Cmd msg )
+(*>) model functions =
+  ( model
+  , functions -- List ( model -> Cmd msg )
+      |> List.map (\f -> f model) -- List (Cmd msg)
+      |> Cmd.batch
+  )
+
+infixl 0 *>
 
 getHead : Status -> Maybe String
 getHead status =
