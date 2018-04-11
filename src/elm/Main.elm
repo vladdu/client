@@ -1008,6 +1008,7 @@ openCard id str (model, prevCmd) =
   else
     { model
       | viewState = { vs | active = id, editing = Just id }
+      , field = str
     }
       ! [ prevCmd, focus id ]
       |> sendCollabState (CollabState model.uid (Editing id) str)
@@ -1082,6 +1083,7 @@ cancelCardNoCmds model =
   let vs = model.viewState in
   { model
     | viewState = { vs | editing = Nothing }
+    , field = ""
   }
 
 
