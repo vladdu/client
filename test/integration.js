@@ -271,7 +271,25 @@ describe('Close Confirmations', function () { // Close Without Saving
         expect(windowTitle).to.equal(`*Untitled Tree - Gingko`)
       })
     })
-    it('should not load requested file')
+
+    describe('Open', function () {
+      beforeEach(function() {
+        robot.keyTap('n', 'control')
+      })
+
+      it('should not discard the changes', async function() {
+        const textareaValue = await client.getValue('#card-edit-1')
+        expect(textareaValue).to.be.equal("Hello World")
+      })
+
+
+      it('should not change the title', async function() {
+        await client.pause(500)
+        let windowTitle = await app.browserWindow.getTitle()
+        expect(windowTitle).to.equal(`*Untitled Tree - Gingko`)
+      })
+    })
+
     it('should not import requested file')
   })
 
