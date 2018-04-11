@@ -15,7 +15,8 @@ type OutgoingMsg
     | ChangeTitle (Maybe String) Bool
     | OpenDialog (Maybe String)
     | ImportDialog (Maybe String)
-    | ConfirmClose (Maybe String) IncomingMsg
+    | ConfirmClose String (Maybe String) (Json.Value, Json.Value)
+    | SaveAnd String (Maybe String) (Json.Value, Json.Value)
     | ConfirmExit (Maybe String)
     | ConfirmCancelCard String String
     | ColumnNumberChange Int
@@ -61,6 +62,15 @@ sendOut info =
   in
   case info of
     -- === Dialogs, Menus, Window State ===
+    SaveAnd actionName filepath_ (statusValue, objectsValue) ->
+      dataToSend
+        ( object
+            [ ( "action", string actionName  )
+            , ( "filepath", maybeToValue string filepath_ )
+            , ( "document", list [ statusValue, objectsValue ] )
+            ]
+        )
+
     Alert str ->
       dataToSend ( string str )
 
@@ -86,11 +96,12 @@ sendOut info =
     ImportDialog filepath_ ->
       dataToSend ( maybeToValue string filepath_ )
 
-    ConfirmClose filepath_ callbackMsg ->
+    ConfirmClose actionName filepath_ (statusValue, objectsValue) ->
       dataToSend
         ( object
-            [ ( "filepath", maybeToValue string filepath_ )
-            , ( "callback", string ( callbackMsg |> unionTypeToString ) )
+            [ ( "action", string actionName  )
+            , ( "filepath", maybeToValue string filepath_ )
+            , ( "document", list [ statusValue, objectsValue ] )
             ]
         )
 
@@ -200,6 +211,12 @@ receiveMsg tagger onError =
   infoForElm
     (\outsideInfo ->
         case outsideInfo.tag of
+          "New" ->
+            tagger <| New
+
+          "SaveAndNew" ->
+            tagger <| SaveAndNew
+
           "FieldChanged" ->
             case decodeValue Json.string outsideInfo.data of
               Ok str ->

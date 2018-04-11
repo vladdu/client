@@ -104,7 +104,7 @@ update msg ({objects, workingTree, status} as model) =
 
     Activate id ->
       model
-        |> saveContentIfEditingNoCmds
+        |> saveCardToTree
         |> cancelCardNoCmds
         |> activateNoCmds id
         *>
@@ -281,10 +281,19 @@ update msg ({objects, workingTree, status} as model) =
     Port incomingMsg ->
       case incomingMsg of
         -- === Dialogs, Menus, Window State ===
-
         IntentNew ->
-          model ! []
-            |> intentNew
+            model ! []
+              |> intentNew
+
+        New ->
+          model |> actionNew
+
+        SaveAndNew ->
+          model
+            |> saveCardToTree
+            |> commitToHistory
+            *>
+              [ \newModel -> sendOut ( SaveAnd "New" newModel.filepath ( statusToValue newModel.status, Objects.toValue newModel.objects ) ) ]
 
         IntentOpen ->
           model ! []
@@ -292,7 +301,7 @@ update msg ({objects, workingTree, status} as model) =
 
         IntentImport ->
           if model.changed then
-            model ! [ sendOut ( ConfirmClose model.filepath ImportConfirmed ) ]
+            model ! [ sendOut ( ConfirmClose "Import" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
           else
             actionImport model
 
@@ -961,8 +970,8 @@ goRight id (model, prevCmd) =
 
 -- === Card Editing  ===
 
-saveContentIfEditingNoCmds : Model -> Model
-saveContentIfEditingNoCmds model =
+saveCardToTree : Model -> Model
+saveCardToTree model =
   case model.viewState.editing of
     Just id ->
       let
@@ -1019,6 +1028,24 @@ openCard id str (model, prevCmd) =
     }
       ! [ prevCmd, focus id ]
       |> sendCollabState (CollabState model.uid (Editing id) str)
+
+
+deleteCardNoCmds : String -> Model -> Model
+deleteCardNoCmds id model =
+  let
+    vs = model.viewState
+
+    isLocked =
+      vs.collaborators
+        |> List.filter (\c -> c.mode == Editing id)
+        |> (not << List.isEmpty)
+  in
+  if isLocked then
+    model
+  else
+    { model
+      | workingTree = Trees.update (Trees.Rmv id) model.workingTree
+    }
 
 
 deleteCard : String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -1249,6 +1276,46 @@ push (model, prevCmd) =
     model ! [ prevCmd ]
 
 
+commitToHistory : Model -> Model
+commitToHistory ({workingTree} as model) =
+  case model.status of
+    Bare ->
+      let
+        (newStatus, _, newObjects) =
+          Objects.update (Objects.Commit [] "Jane Doe <jane.doe@gmail.com>" workingTree.tree) model.objects
+      in
+      { model
+        | objects = newObjects
+        , status = newStatus
+        , changed = True
+      }
+
+    Clean oldHead ->
+      let
+        (newStatus, _, newObjects) =
+          Objects.update (Objects.Commit [oldHead] "Jane Doe <jane.doe@gmail.com>" workingTree.tree) model.objects
+      in
+      { model
+        | objects = newObjects
+        , status = newStatus
+        , changed = True
+      }
+
+    MergeConflict _ oldHead newHead conflicts ->
+      if (List.isEmpty conflicts || (conflicts |> List.filter (not << .resolved) |> List.isEmpty)) then
+        let
+          (newStatus, _, newObjects) =
+            Objects.update (Objects.Commit [oldHead, newHead] "Jane Doe <jane.doe@gmail.com>" workingTree.tree) model.objects
+        in
+        { model
+          | objects = newObjects
+          , status = newStatus
+          , changed = True
+        }
+      else
+        model
+
+
 addToHistory : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 addToHistory ({workingTree} as model, prevCmd) =
   case model.status of
@@ -1332,16 +1399,21 @@ dialogSaveChanges isMac cb =
 
 intentNew : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 intentNew (model, prevCmd) =
-  if model.changed then
-    model ! [ sendOut ( MessageBox ( dialogSaveChanges model.isMac ( ConfirmNew 0 ) ) ) ]
-  else
-    actionNew model
+  case (model.changed, model.viewState.editing) of
+    ( False, _ ) ->
+      actionNew model
+
+    ( True, Nothing ) ->
+      model ! [ sendOut ( ConfirmClose "New" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
+
+    ( True, Just eid ) ->
+      model ! [ sendOut ( ConfirmClose "NewFromEditMode" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
 
 
 intentOpen : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 intentOpen (model, prevCmd) =
   if model.changed then
-    model ! [ sendOut ( ConfirmClose model.filepath OpenConfirmed ) ]
+    model ! [ sendOut ( ConfirmClose "Open" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
   else
     actionOpen model
 

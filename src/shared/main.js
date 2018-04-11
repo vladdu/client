@@ -170,17 +170,37 @@ const update = (msg, data) => {
         }
       }
 
-
     , 'ConfirmClose': async () => {
         let choice = await saveConfirmationDialog()
         if (choice == 0) {
           // "Close without Saving"
-          toElm(data.callback, null)
+          if (data.action == "New" || data.action == "NewFromEditMode" ) {
+            toElm("New", null)
+          }
         } else if (choice == 2) {
           // "Save and then Callback"
+          if (data.action == "New" ) {
+            await saveToDB(data.document[0], data.document[1])
+            let savePath = data.filepath ? data.filepath : await saveAsDialog()
+            await save(savePath)
+            await clearDb()
+            document.title = "Untitled Tree - Gingko"
+            toElm("New", null)
+          } else if (data.action == "NewFromEditMode") {
+            toElm("SaveAndNew", null)
+          }
+        }
+      }
+
+    , 'SaveAnd': async () => {
+        // "Save and then Callback"
+        if (data.action == "New" ) {
+          await saveToDB(data.document[0], data.document[1])
           let savePath = data.filepath ? data.filepath : await saveAsDialog()
           await save(savePath)
-          toElm(data.callback, null)
+          await clearDb()
+          document.title = "Untitled Tree - Gingko"
+          toElm("New", null)
         }
       }
 
@@ -225,36 +245,13 @@ const update = (msg, data) => {
         clearDb()
       }
 
-    , 'SaveToDB': () => {
-        let status = data[0]
-        let objects = data[1]
-        db.get('status')
-          .catch(err => {
-            if(err.name == "not_found") {
-              return {_id: 'status' , status : 'bare', bare: true}
-            } else {
-              console.log('load status error', err)
-            }
-          })
-          .then(statusDoc => {
-            if(statusDoc._rev) {
-              status['_rev'] = statusDoc._rev
-            }
-
-            let toSave = objects.commits.concat(objects.treeObjects).concat(objects.refs).concat([status]);
-            db.bulkDocs(toSave)
-              .catch(err => {
-                console.log(err)
-              })
-              .then(responses => {
-                let head = responses.filter(r => r.id == "heads/master")[0]
-                if (head.ok) {
-                  toElm('SetHeadRev', head.rev)
-                } else {
-                  console.log('head not ok', head)
-                }
-              })
-          })
+    , 'SaveToDB': async () => {
+        try {
+          let headRev = await saveToDB(data[0], data[1])
+          toElm('SetHeadRev', headRev)
+        } catch (err) {
+          console.log('head not ok', err)
+        }
       }
 
     , 'SaveLocal': () => {
@@ -533,6 +530,72 @@ const setHead = function(sha) {
 
 
 /* === Local Functions === */
+
+self.saveToDB = (status, objects) => {
+  return new Promise(
+    async (resolve, reject) => {
+      let statusDoc =
+        await db.get('status')
+                .catch(err => {
+                  if(err.name == "not_found") {
+                    return {_id: 'status' , status : 'bare', bare: true}
+                  } else {
+                    console.log('load status error', err)
+                  }
+                })
+
+      if(statusDoc._rev) {
+        status['_rev'] = statusDoc._rev
+      }
+
+      let toSave = objects.commits.concat(objects.treeObjects).concat(objects.refs).concat([status]);
+
+      try {
+        let responses = await db.bulkDocs(toSave)
+        let head = responses.filter(r => r.id == "heads/master")[0]
+        if (head.ok) {
+          resolve(head.rev)
+        } else {
+          reject(new Error('head not ok: ' + head))
+        }
+      } catch (err) {
+        console.log(err)
+      }
+    })
+}
+
+/*
+  db.get('status')
+    .catch(err => {
+      if(err.name == "not_found") {
+        return {_id: 'status' , status : 'bare', bare: true}
+      } else {
+        console.log('load status error', err)
+      }
+    })
+    .then(statusDoc => {
+      if(statusDoc._rev) {
+        status['_rev'] = statusDoc._rev
+      }
+
+      let toSave = objects.commits.concat(objects.treeObjects).concat(objects.refs).concat([status]);
+      console.log('saveToDB toSave', toSave)
+      db.bulkDocs(toSave)
+        .catch(err => {
+          console.log(err)
+        })
+        .then(responses => {
+          let head = responses.filter(r => r.id == "heads/master")[0]
+          if (head.ok) {
+            console.log('head is ok')
+            toElm('SetHeadRev', head.rev)
+          } else {
+            console.log('head not ok', head)
+          }
+        })
+    })
+    */
+
 
 self.save = (filepath) => {
   return new Promise(
