@@ -143,6 +143,7 @@ const update = (msg, data) => {
 
     , 'MessageBox': () => {
         let options = _.omit(data, 'callback')
+        console.log(options)
         let choice = dialog.showMessageBox(options)
         toElm(data.callback, choice)
       }
@@ -814,6 +815,7 @@ const editingInputHandler = function(ev) {
     changed = true
     toElm('Changed', true)
   }
+  toElm('FieldChanged', ev.target.value)
   collab.field = ev.target.value
   socket.emit('collab', collab)
 }

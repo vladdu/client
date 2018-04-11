@@ -38,7 +38,6 @@ type IncomingMsg
     | IntentOpen
     | IntentImport
     | IntentExit
-    | NewConfirmed
     | OpenConfirmed
     | ImportConfirmed
     | CancelCardConfirmed
@@ -55,7 +54,7 @@ type IncomingMsg
     | Changed Bool
     | FileState (Maybe String) Bool
     -- === DOM ===
-    | ContentIn (String, String)
+    | FieldChanged String
     -- === UI ===
     | CheckoutCommit String
     | ViewVideos

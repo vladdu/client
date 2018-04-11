@@ -33,7 +33,6 @@ type OutgoingMsg
     | ExportTXTColumn Int Tree
     -- === DOM ===
     | ActivateCards (String, Int, List (List String), Maybe String)
-    | GetContent String
     | SurroundText String String
     -- === UI ===
     | UpdateCommits (Json.Value, Maybe String)
@@ -47,8 +46,10 @@ type OutgoingMsg
 type alias MessageBoxOptions =
   { title : String
   , message : String
+  , detail : String
   , buttons : List String
   , defaultId : Int
+  , type_ : String
   , callback : IncomingMsg
   }
 
@@ -68,8 +69,10 @@ sendOut info =
         ( object
             [ ( "title", string options.title )
             , ( "message", string options.message )
+            , ( "detail", string options.detail)
             , ( "buttons", options.buttons |> List.map string |> list )
             , ( "defaultId", int options.defaultId )
+            , ( "type", string options.type_ )
             , ( "callback", string ( options.callback |> unionTypeToString ) )
             ]
         )
@@ -161,9 +164,6 @@ sendOut info =
             ]
         )
 
-    GetContent id ->
-      dataToSend ( string id )
-
     SurroundText id str ->
       dataToSend ( list [ string id, string str ] )
 
@@ -200,6 +200,14 @@ receiveMsg tagger onError =
   infoForElm
     (\outsideInfo ->
         case outsideInfo.tag of
+          "FieldChanged" ->
+            case decodeValue Json.string outsideInfo.data of
+              Ok str ->
+                tagger <| FieldChanged str
+
+              Err e ->
+                onError e
+
           "ConfirmNew" ->
             case decodeValue Json.int outsideInfo.data of
               Ok choice ->
@@ -220,19 +228,8 @@ receiveMsg tagger onError =
           "IntentExit" ->
             tagger <| IntentExit
 
-          "NewConfirmed" ->
-            tagger <| NewConfirmed
-
           "OpenConfirmed" ->
             tagger <| OpenConfirmed
-
-          "ContentIn" ->
-            case decodeValue ( tupleDecoder Json.string Json.string ) outsideInfo.data of
-              Ok (id, str) ->
-                tagger <| ContentIn (id, str)
-
-              Err e ->
-                onError e
 
           "CancelCardConfirmed" ->
             tagger <| CancelCardConfirmed

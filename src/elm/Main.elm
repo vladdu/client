@@ -40,6 +40,7 @@ type alias Model =
   , status : Status
   , uid : String
   , viewState : ViewState
+  , field : String
   , isMac : Bool
   , shortcutTrayOpen : Bool
   , videoModalOpen : Bool
@@ -66,6 +67,7 @@ defaultModel =
       , draggedTree = Nothing
       , collaborators = []
       }
+  , field = ""
   , isMac = False
   , shortcutTrayOpen = True
   , videoModalOpen = False
@@ -101,15 +103,10 @@ update msg ({objects, workingTree, status} as model) =
     -- === Card Activation ===
 
     Activate id ->
-      case vs.editing of
-        Just eid ->
-          model ! [ sendOut ( GetContent eid ) ]
-            |> cancelCard
-            |> activate id
-
-        Nothing ->
-          model ! []
-            |> activate id
+      model ! []
+        |> saveContentIfEditing
+        |> cancelCard
+        |> activate id
 
     -- === Card Editing  ===
 
@@ -304,25 +301,28 @@ update msg ({objects, workingTree, status} as model) =
             model ! [ sendOut Exit ]
 
         ConfirmNew choice ->
+          let _ = Debug.log "ConfirmNew choice" choice in
           case choice of
-            0 -> actionNew model
-            1 -> model ! []
-            2 ->
+            2 -> -- Save
               case model.viewState.editing of
                 Nothing ->
-                  model ! []
                   -- Save and then New
+                  model ! [ sendOut <| Save model.filepath ]
+                    --|> actionNew
 
                 Just eid ->
                   model ! []
                   -- GetContent
                   -- Save and then New
 
+            1 -> -- Cancel
+              model ! []
+
+            0 -> -- Close without Saving
+              actionNew model
+
             _ ->
               Debug.crash "Invalid choice for ConfirmNew dialog."
-
-        NewConfirmed ->
-          actionNew model
 
         OpenConfirmed ->
           actionOpen model
@@ -521,21 +521,8 @@ update msg ({objects, workingTree, status} as model) =
 
         -- === DOM ===
 
-        ContentIn (id, str) ->
-          let
-            newTree = Trees.update (Trees.Upd id str) model.workingTree
-          in
-          if newTree.tree /= model.workingTree.tree then
-            { model
-              | workingTree = newTree
-            }
-              ! []
-              |> addToHistory
-              |> sendCollabState (CollabState model.uid (Active id) "")
-          else
-            model
-              ! []
-              |> sendCollabState (CollabState model.uid (Active id) "")
+        FieldChanged str ->
+          { model | field = str } ! []
 
         -- === UI ===
 
@@ -570,17 +557,13 @@ update msg ({objects, workingTree, status} as model) =
           case shortcut of
             "mod+x" ->
               let _ = Debug.log "model" model in
-              model ! [ sendOut ( MessageBox ( MessageBoxOptions "Hi" "You" ["yes", "no"] 0 ( ConfirmNew 0 ) ) ) ]
+              model ! []
 
             "mod+enter" ->
-              case vs.editing of
-                Nothing ->
-                  model ! []
-
-                Just uid ->
-                  model ! [ sendOut ( GetContent uid ) ]
-                    |> cancelCard
-                    |> activate uid
+              model ! []
+                |> saveContentIfEditing
+                |> cancelCard
+                |> activate vs.active
 
             "enter" ->
               normalMode model (openCard vs.active (getContent vs.active model.workingTree.tree))
@@ -592,19 +575,25 @@ update msg ({objects, workingTree, status} as model) =
               model |> intentCancelCard
 
             "mod+j" ->
-              model |> maybeSaveAndThen (insertBelow vs.active)
+              model ! []
+                |> saveContentIfEditing
+                |> insertBelow vs.active
 
             "mod+down" ->
               normalMode model (insertBelow vs.active)
 
             "mod+k" ->
-              model |> maybeSaveAndThen (insertAbove vs.active)
+              model ! []
+                |> saveContentIfEditing
+                |> insertAbove vs.active
 
             "mod+up" ->
               normalMode model (insertAbove vs.active)
 
             "mod+l" ->
-              model |> maybeSaveAndThen (insertChild vs.active)
+              model ! []
+                |> saveContentIfEditing
+                |> insertChild vs.active
 
             "mod+right" ->
               normalMode model (insertChild vs.active)
@@ -679,10 +668,14 @@ update msg ({objects, workingTree, status} as model) =
               model ! [] |> intentNew
 
             "mod+s" ->
-              model |> maybeSaveAndThen intentSave
+              model ! []
+                |> saveContentIfEditing
+                |> intentSave
 
             "mod+shift+s" ->
-              model |> maybeSaveAndThen intentSaveAs
+              model ! []
+                |> saveContentIfEditing
+                |> intentSaveAs
 
             "mod+o" ->
               model ! [] |> intentOpen
@@ -880,6 +873,29 @@ goRight id (model, prevCmd) =
 
 
 -- === Card Editing  ===
+
+saveContentIfEditing : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+saveContentIfEditing (model, prevCmd) =
+  case model.viewState.editing of
+    Just id ->
+      let
+        newTree = Trees.update (Trees.Upd id model.field) model.workingTree
+      in
+      if newTree.tree /= model.workingTree.tree then
+        { model
+          | workingTree = newTree
+        }
+          ! [ prevCmd ]
+          |> addToHistory
+          |> sendCollabState (CollabState model.uid (Active id) "")
+      else
+        model
+          ! [ prevCmd ]
+          |> sendCollabState (CollabState model.uid (Active id) "")
+
+    Nothing ->
+      ( model, prevCmd )
+
 
 openCard : String -> String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 openCard id str (model, prevCmd) =
@@ -1180,10 +1196,31 @@ addToHistory ({workingTree} as model, prevCmd) =
 
 -- === Files ===
 
+dialogSaveChanges : Bool -> IncomingMsg -> MessageBoxOptions
+dialogSaveChanges isMac cb =
+  if isMac then
+    { title = "Save changes?"
+    , message = "Do you want to save changes to this document before closing?"
+    , detail = "If you don't save, your changes will be lost."
+    , buttons = ["Don't Save", "Cancel", "Save"]
+    , defaultId = 2
+    , type_ = "warning"
+    , callback = cb
+    }
+  else
+    { title = "Save changes"
+    , message = "Want to save your changes?"
+    , detail = ""
+    , buttons = ["Save", "Don't save", "Cancel"]
+    , defaultId = 0
+    , type_ = "warning"
+    , callback = cb
+    }
+
 intentNew : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 intentNew (model, prevCmd) =
   if model.changed then
-    model ! [ sendOut ( ConfirmClose model.filepath NewConfirmed ) ]
+    model ! [ sendOut ( MessageBox ( dialogSaveChanges model.isMac ( ConfirmNew 0 ) ) ) ]
   else
     actionNew model
 
@@ -1331,18 +1368,6 @@ focus id =
 run : Msg -> Cmd Msg
 run msg =
   Task.attempt (\_ -> msg ) (Task.succeed msg)
-
-
-maybeSaveAndThen : ( (Model, Cmd Msg) -> (Model, Cmd Msg) ) -> Model -> (Model, Cmd Msg)
-maybeSaveAndThen operation model =
-  case model.viewState.editing of
-    Nothing ->
-      model ! []
-        |> operation
-
-    Just uid ->
-      model ! [ sendOut ( GetContent uid ) ]
-        |> operation
 
 
 normalMode : Model -> ( (Model, Cmd Msg) -> (Model, Cmd Msg) ) -> (Model, Cmd Msg)
