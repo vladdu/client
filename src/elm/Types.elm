@@ -33,23 +33,17 @@ type Msg
 
 type IncomingMsg
     -- === Dialogs, Menus, Window State ===
-    = ConfirmNew Int
-    | IntentNew
-    | New
-    | SaveAndNew
+    = IntentNew
     | IntentOpen
     | IntentImport
+    | IntentExport ExportSettings
     | IntentExit
-    | OpenConfirmed
-    | ImportConfirmed
     | CancelCardConfirmed
-    | DoExportJSON
-    | DoExportTXT
-    | DoExportTXTCurrent
-    | DoExportTXTColumn Int
     -- === Database ===
+    | New
+    | SaveAndNew
     | SetHeadRev String
-    | Load (String, Json.Value, String)
+    | Open (String, Json.Value, String)
     | Merge Json.Value
     | ImportJSON Json.Value
     -- === File System ===
@@ -68,6 +62,16 @@ type IncomingMsg
 
 type alias OutsideData =
   { tag : String, data: Json.Value }
+
+
+type alias ExportSettings =
+  { format : ExportFormat
+  , selection : ExportSelection
+  }
+
+
+type ExportFormat = JSON | TXT
+type ExportSelection = All | CurrentSubtree | ColumnNumber Int
 
 
 type alias Tree =

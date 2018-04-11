@@ -174,7 +174,7 @@ const update = (msg, data) => {
         let choice = await saveConfirmationDialog()
         if (choice == 0) {
           // "Close without Saving"
-          
+
           switch (data.action) {
             case "New":
             case "NewFromEditMode":

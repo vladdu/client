@@ -200,14 +200,6 @@ receiveMsg tagger onError =
               Err e ->
                 onError e
 
-          "ConfirmNew" ->
-            case decodeValue Json.int outsideInfo.data of
-              Ok choice ->
-                tagger <| ConfirmNew choice
-
-              Err e ->
-                onError e
-
           "IntentNew" ->
             tagger <| IntentNew
 
@@ -217,19 +209,24 @@ receiveMsg tagger onError =
           "IntentImport" ->
             tagger <| IntentImport
 
+          "IntentExport" ->
+            case decodeValue exportSettingsDecoder outsideInfo.data of
+              Ok exportSettings ->
+                tagger <| IntentExport exportSettings
+
+              Err e ->
+                onError e
+
           "IntentExit" ->
             tagger <| IntentExit
-
-          "OpenConfirmed" ->
-            tagger <| OpenConfirmed
 
           "CancelCardConfirmed" ->
             tagger <| CancelCardConfirmed
 
-          "Load" ->
+          "Open" ->
             case decodeValue ( tripleDecoder Json.string Json.value (Json.maybe Json.string) ) outsideInfo.data of
               Ok ( filepath, json, lastActive_ ) ->
-                tagger <| Load (filepath, json, lastActive_ |> Maybe.withDefault "1" )
+                tagger <| Open (filepath, json, lastActive_ |> Maybe.withDefault "1" )
 
               Err e ->
                 onError e
@@ -288,20 +285,6 @@ receiveMsg tagger onError =
 
               Err e ->
                 onError e
-
-          "DoExportJSON" ->
-            tagger <| DoExportJSON
-
-          "DoExportTXT" ->
-            case decodeValue Json.int outsideInfo.data of
-              Ok col ->
-                tagger <| DoExportTXTColumn col
-
-              Err e ->
-                tagger <| DoExportTXT
-
-          "DoExportTXTCurrent" ->
-              tagger <| DoExportTXTCurrent
 
           "ViewVideos" ->
             tagger <| ViewVideos

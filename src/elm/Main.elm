@@ -284,16 +284,6 @@ update msg ({objects, workingTree, status} as model) =
         IntentNew ->
           intentNew model
 
-        New ->
-          actionNew model
-
-        SaveAndNew ->
-          model
-            |> saveCardToTree
-            |> commitToHistory
-            *>
-              [ \newModel -> sendOut ( SaveAnd "New" newModel.filepath ( statusToValue newModel.status, Objects.toValue newModel.objects ) ) ]
-
         IntentOpen ->
           intentOpen model
 
@@ -303,46 +293,34 @@ update msg ({objects, workingTree, status} as model) =
           else
             actionImport model
 
+        New ->
+          actionNew model
+
+        SaveAndNew ->
+          let
+            sendSaveAnd m =
+              sendOut ( SaveAnd "New" m.filepath ( statusToValue m.status, Objects.toValue m.objects ) )
+          in
+          model
+            |> saveCardToTree
+            |> commitToHistory
+            *>
+              [ sendSaveAnd ]
+
         IntentExit ->
           if model.changed then
             model ! [ sendOut ( ConfirmExit model.filepath ) ]
           else
             model ! [ sendOut Exit ]
 
-        ConfirmNew choice ->
-          let _ = Debug.log "ConfirmNew choice" choice in
-          case choice of
-            2 -> -- Save
-              case model.viewState.editing of
-                Nothing ->
-                  -- Save and then New
-                  model ! [ sendOut <| Save model.filepath ]
-                    --|> actionNew
-
-                Just eid ->
-                  model ! []
-                  -- GetContent
-                  -- Save and then New
-
-            1 -> -- Cancel
-              model ! []
-
-            0 -> -- Close without Saving
-              actionNew model
-
-            _ ->
-              Debug.crash "Invalid choice for ConfirmNew dialog."
-
-        OpenConfirmed ->
-          actionOpen model
-
-        ImportConfirmed ->
-          actionImport model
+        IntentExport exportSettings ->
+          model ! [] 
 
         CancelCardConfirmed ->
           model ! []
             |> cancelCard
 
+{-
         DoExportJSON ->
           model
             ! [ sendOut ( ExportJSON model.workingTree.tree ) ]
@@ -365,6 +343,8 @@ update msg ({objects, workingTree, status} as model) =
           model
             ! [ sendOut ( ExportTXTColumn col model.workingTree.tree )]
 
+-}
+
         -- === Database ===
 
         SetHeadRev rev ->
@@ -374,7 +354,7 @@ update msg ({objects, workingTree, status} as model) =
             ! []
             |> push
 
-        Load (filepath, json, lastActiveCard) ->
+        Open (filepath, json, lastActiveCard) ->
           let
             (newStatus, newTree_, newObjects) =
                 Objects.update (Objects.Init json) objects
