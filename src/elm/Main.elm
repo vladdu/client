@@ -314,6 +314,7 @@ update msg ({objects, workingTree, status} as model) =
             model ! [ sendOut Exit ]
 
         IntentExport exportSettings ->
+          let _ = Debug.log "exportSettings" exportSettings in
           model ! [] 
 
         CancelCardConfirmed ->

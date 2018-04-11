@@ -288,19 +288,25 @@ exportSettingsDecoder =
     formatDecoder =
       Json.map formatFromString string
 
-    exportAllDecoder =
+    exportStringDecoder =
       Json.map
         (\s ->
           case s of
             "all" -> All
+            "current" -> CurrentSubtree
             _ -> All
         )
         string
 
+    exportColumnDecoder =
+      Json.map
+        ( \i -> ColumnNumber i )
+        ( field "column" int )
+
     exportSelectionDecoder =
       oneOf
-        [
-         exportAllDecoder
+        [ exportStringDecoder
+        , exportColumnDecoder
         ]
   in
   Json.map2 ExportSettings
