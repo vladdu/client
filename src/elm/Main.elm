@@ -351,31 +351,6 @@ update msg ({objects, workingTree, status} as model) =
             *>
               [ sendSaveAnd ]
 
-{-
-        DoExportJSON ->
-          model
-            ! [ sendOut ( ExportJSON model.workingTree.tree ) ]
-
-        DoExportTXT ->
-          model
-            ! [ sendOut ( ExportTXT False model.workingTree.tree )]
-
-        DoExportTXTCurrent ->
-          let
-            currentTree =
-              model.workingTree.tree
-                |> getTree model.viewState.active
-                |> Maybe.withDefault model.workingTree.tree
-          in
-          model
-            ! [ sendOut ( ExportTXT True currentTree )]
-
-        DoExportTXTColumn col ->
-          model
-            ! [ sendOut ( ExportTXTColumn col model.workingTree.tree )]
-
--}
-
         -- === Database ===
 
         SetHeadRev rev ->
