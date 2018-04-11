@@ -185,6 +185,7 @@ describe('Close Confirmations', function () { // Close Without Saving
       })
 
       it('should discard the changes', async function() {
+        await client.waitForExist('#card-1 .view', 500)
         let cardText = await client.getText('#card-1 .view')
         expect(cardText).to.equal("")
       })
@@ -200,11 +201,11 @@ describe('Close Confirmations', function () { // Close Without Saving
         robot.keyTap('o', 'control')
       })
 
-      it('should discard the changes', async function() {
-        await client.waitForExist('#card-1 .view', 500)
-        let cardText = await client.getText('#card-1 .view')
-        await client.pause(500)
-        expect(cardText).to.equal("")
+      it('should discard the changes', function() {
+        let checkTextarea = async function() {
+          await client.waitForExist('#card-edit-1', 500, true)
+        }
+        expect(checkTextarea).to.not.throw
       })
 
       it('should set the title based on loaded file', async function() {

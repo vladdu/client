@@ -282,11 +282,10 @@ update msg ({objects, workingTree, status} as model) =
       case incomingMsg of
         -- === Dialogs, Menus, Window State ===
         IntentNew ->
-            model ! []
-              |> intentNew
+          intentNew model
 
         New ->
-          model |> actionNew
+          actionNew model
 
         SaveAndNew ->
           model
@@ -296,8 +295,7 @@ update msg ({objects, workingTree, status} as model) =
               [ \newModel -> sendOut ( SaveAnd "New" newModel.filepath ( statusToValue newModel.status, Objects.toValue newModel.objects ) ) ]
 
         IntentOpen ->
-          model ! []
-            |> intentOpen
+          intentOpen model
 
         IntentImport ->
           if model.changed then
@@ -390,6 +388,7 @@ update msg ({objects, workingTree, status} as model) =
             (Clean newHead, Nothing) -> -- no changes to Tree
               { model
                 | status = newStatus
+                , viewState = defaultModel.viewState
                 , startingWordcount = startingWordcount
                 , filepath = Just filepath
                 , changed = False
@@ -404,6 +403,7 @@ update msg ({objects, workingTree, status} as model) =
                 | workingTree = Trees.setTree newTree model.workingTree
                 , objects = newObjects
                 , status = newStatus
+                , viewState = defaultModel.viewState
                 , startingWordcount = startingWordcount
                 , filepath = Just filepath
                 , changed = False
@@ -418,6 +418,7 @@ update msg ({objects, workingTree, status} as model) =
                 | workingTree = Trees.setTree newTree model.workingTree
                 , objects = newObjects
                 , status = newStatus
+                , viewState = defaultModel.viewState
                 , startingWordcount = startingWordcount
                 , filepath = Just filepath
                 , changed = False
@@ -432,6 +433,7 @@ update msg ({objects, workingTree, status} as model) =
                 | workingTree = Trees.setTreeWithConflicts conflicts mTree model.workingTree
                 , objects = newObjects
                 , status = newStatus
+                , viewState = defaultModel.viewState
                 , startingWordcount = startingWordcount
                 , filepath = Just filepath
                 , changed = False
@@ -676,7 +678,7 @@ update msg ({objects, workingTree, status} as model) =
               model ! []
 
             "mod+n" ->
-              model ! [] |> intentNew
+              intentNew model 
 
             "mod+s" ->
               model ! []
@@ -689,7 +691,7 @@ update msg ({objects, workingTree, status} as model) =
                 |> intentSaveAs
 
             "mod+o" ->
-              model ! [] |> intentOpen
+              intentOpen model
 
             "mod+b" ->
               case vs.editing of
@@ -1397,8 +1399,8 @@ dialogSaveChanges isMac cb =
     , callback = cb
     }
 
-intentNew : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-intentNew (model, prevCmd) =
+intentNew : Model -> ( Model, Cmd Msg )
+intentNew model =
   case (model.changed, model.viewState.editing) of
     ( False, _ ) ->
       actionNew model
@@ -1410,12 +1412,17 @@ intentNew (model, prevCmd) =
       model ! [ sendOut ( ConfirmClose "NewFromEditMode" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
 
 
-intentOpen : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-intentOpen (model, prevCmd) =
-  if model.changed then
-    model ! [ sendOut ( ConfirmClose "Open" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
-  else
-    actionOpen model
+intentOpen : Model -> ( Model, Cmd Msg )
+intentOpen model =
+  case (model.changed, model.viewState.editing) of
+    ( False, _ ) ->
+      actionOpen model
+
+    ( True, Nothing ) ->
+      model ! [ sendOut ( ConfirmClose "Open" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
+
+    ( True, Just eid ) ->
+      model ! [ sendOut ( ConfirmClose "OpenFromEditMode" model.filepath ( statusToValue model.status, Objects.toValue model.objects ) ) ]
 
 
 intentSave : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -1430,11 +1437,8 @@ intentSaveAs (model, prevCmd) =
 
 actionNew : Model -> ( Model, Cmd Msg )
 actionNew model =
-  let clearDB (m, pc) = m ! [pc, sendOut ClearDB] in
-      init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
-          |> maybeColumnsChanged model.workingTree.columns
-          |> changeTitle
-          |> clearDB
+  init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
+    |> maybeColumnsChanged model.workingTree.columns
 
 
 actionOpen : Model -> ( Model, Cmd Msg )

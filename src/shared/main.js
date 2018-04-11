@@ -136,6 +136,7 @@ I know it's not much guidance, but it's a start.
 /* === Elm to JS Ports === */
 
 const update = (msg, data) => {
+  console.log(msg, data)
   let cases =
     {
       /* --- Dialogs, Menus, Window State --- */
@@ -143,7 +144,6 @@ const update = (msg, data) => {
 
     , 'MessageBox': () => {
         let options = _.omit(data, 'callback')
-        console.log(options)
         let choice = dialog.showMessageBox(options)
         toElm(data.callback, choice)
       }
@@ -174,8 +174,29 @@ const update = (msg, data) => {
         let choice = await saveConfirmationDialog()
         if (choice == 0) {
           // "Close without Saving"
-          if (data.action == "New" || data.action == "NewFromEditMode" ) {
-            toElm("New", null)
+          
+          switch (data.action) {
+            case "New":
+            case "NewFromEditMode":
+              await clearDb()
+              document.title = "Untitled Tree - Gingko"
+              changed = false
+              toElm("New", null)
+              break
+
+            case "Open":
+            case "OpenFromEditMode":
+              let filepathArray = await openDialog()
+
+              if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
+                var filepathToLoad = filepathArray[0]
+                loadFile(filepathToLoad)
+                changed = false
+              }
+              break;
+
+            default:
+              console.log("Unsupported action: " + data.action)
           }
         } else if (choice == 2) {
           // "Save and then Callback"
@@ -185,6 +206,7 @@ const update = (msg, data) => {
             await save(savePath)
             await clearDb()
             document.title = "Untitled Tree - Gingko"
+            changed = false
             toElm("New", null)
           } else if (data.action == "NewFromEditMode") {
             toElm("SaveAndNew", null)
@@ -440,7 +462,7 @@ const load = function(filepath, headOverride){
         }
 
         let toSend = [filepath, [status, { commits: commits, treeObjects: trees, refs: refs}], getLastActive(filepath)];
-        gingko.ports.infoForElm.send({tag: "Load", data: toSend});
+        toElm("Load", toSend);
       }).catch(function (err) {
         console.log(err)
       })
