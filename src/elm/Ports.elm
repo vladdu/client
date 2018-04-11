@@ -11,7 +11,6 @@ import Json.Decode as Json exposing (decodeValue)
 type OutgoingMsg
     -- === Dialogs, Menus, Window State ===
     = Alert String
-    | MessageBox MessageBoxOptions
     | ChangeTitle (Maybe String) Bool
     | OpenDialog (Maybe String)
     | ImportDialog (Maybe String)
@@ -44,17 +43,6 @@ type OutgoingMsg
     | ConsoleLogRequested String
 
 
-type alias MessageBoxOptions =
-  { title : String
-  , message : String
-  , detail : String
-  , buttons : List String
-  , defaultId : Int
-  , type_ : String
-  , callback : IncomingMsg
-  }
-
-
 sendOut : OutgoingMsg -> Cmd msg
 sendOut info =
   let
@@ -73,19 +61,6 @@ sendOut info =
 
     Alert str ->
       dataToSend ( string str )
-
-    MessageBox options ->
-      dataToSend
-        ( object
-            [ ( "title", string options.title )
-            , ( "message", string options.message )
-            , ( "detail", string options.detail)
-            , ( "buttons", options.buttons |> List.map string |> list )
-            , ( "defaultId", int options.defaultId )
-            , ( "type", string options.type_ )
-            , ( "callback", string ( options.callback |> unionTypeToString ) )
-            ]
-        )
 
     ChangeTitle filepath_ changed ->
       dataToSend ( tupleToValue ( maybeToValue string ) bool ( filepath_, changed ) )

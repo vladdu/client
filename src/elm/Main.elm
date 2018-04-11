@@ -1378,27 +1378,6 @@ addToHistory ({workingTree} as model, prevCmd) =
 
 -- === Files ===
 
-dialogSaveChanges : Bool -> IncomingMsg -> MessageBoxOptions
-dialogSaveChanges isMac cb =
-  if isMac then
-    { title = "Save changes?"
-    , message = "Do you want to save changes to this document before closing?"
-    , detail = "If you don't save, your changes will be lost."
-    , buttons = ["Don't Save", "Cancel", "Save"]
-    , defaultId = 2
-    , type_ = "warning"
-    , callback = cb
-    }
-  else
-    { title = "Save changes"
-    , message = "Want to save your changes?"
-    , detail = ""
-    , buttons = ["Save", "Don't save", "Cancel"]
-    , defaultId = 0
-    , type_ = "warning"
-    , callback = cb
-    }
-
 intentNew : Model -> ( Model, Cmd Msg )
 intentNew model =
   case (model.changed, model.viewState.editing) of

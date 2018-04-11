@@ -202,6 +202,8 @@ describe('Close Confirmations', function () { // Close Without Saving
       })
 
       it('should discard the changes', function() {
+        // TODO: add a test file with know content
+        //       and then check to see that that content is present
         let checkTextarea = async function() {
           await client.waitForExist('#card-edit-1', 500, true)
         }
