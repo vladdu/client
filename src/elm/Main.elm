@@ -1408,6 +1408,11 @@ intentSaveAs (model, prevCmd) =
   model ! [ prevCmd, sendOut ( Save Nothing ) ]
 
 
+intentExit : Model -> ( Model, Cmd Msg )
+intentExit model =
+  saveChangesDialog "Exit" actionExit model
+
+
 actionNew : Model -> ( Model, Cmd Msg )
 actionNew model =
   init (model.isMac, model.shortcutTrayOpen, model.videoModalOpen)
@@ -1422,6 +1427,11 @@ actionOpen model =
 actionImport : Model -> ( Model, Cmd Msg )
 actionImport model =
   model ! [ sendOut ( ImportDialog model.filepath ) ]
+
+
+actionExit : Model -> ( Model, Cmd Msg )
+actionExit model =
+  model ! [ sendOut Exit ]
 
 
 changeTitle : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
