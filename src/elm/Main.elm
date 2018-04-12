@@ -914,7 +914,8 @@ goRight id (model, prevCmd) =
 
 saveCardIfEditing : Model -> Model
 saveCardIfEditing model =
-  case model.viewState.editing of
+  let vs = model.viewState in
+  case vs.editing of
     Just id ->
       let
         newTree = Trees.update (Trees.Upd id model.field) model.workingTree
@@ -922,6 +923,8 @@ saveCardIfEditing model =
       if newTree.tree /= model.workingTree.tree then
         { model
           | workingTree = newTree
+          , viewState = { vs | editing = Nothing }
+          , field = ""
         }
       else
         model
