@@ -106,9 +106,8 @@ update msg ({objects, workingTree, status} as model) =
       model
         |> saveCardIfEditing
         |> cancelCardNoCmds
-        |> activateNoCmds id
         *>
-          [ activateCmds id ]
+          [ activateFold id ]
 
     -- === Card Editing  ===
 
@@ -298,7 +297,7 @@ update msg ({objects, workingTree, status} as model) =
                   model
                     |> saveCardIfEditing
                     *>
-                      [ \m -> sendOut ( ExportJSON m.workingTree.tree ) ]
+                      [ \m -> ( m, sendOut ( ExportJSON m.workingTree.tree ) ) ]
 
                 _ -> model ! []
 
@@ -308,19 +307,19 @@ update msg ({objects, workingTree, status} as model) =
                   model
                     |> saveCardIfEditing
                     *>
-                      [ \m -> sendOut ( ExportTXT False m.workingTree.tree ) ]
+                      [ \m -> ( m, sendOut ( ExportTXT False m.workingTree.tree ) ) ]
 
                 CurrentSubtree ->
                   model
                     |> saveCardIfEditing
                     *>
-                      [ \m -> sendOut ( ExportTXT True m.workingTree.tree ) ]
+                      [ \m -> ( m, sendOut ( ExportTXT True m.workingTree.tree ) ) ]
 
                 ColumnNumber col ->
                   model
                     |> saveCardIfEditing
                     *>
-                      [ \m -> sendOut ( ExportTXTColumn col m.workingTree.tree ) ]
+                      [ \m -> ( m, sendOut ( ExportTXTColumn col m.workingTree.tree ) ) ]
 
         IntentExit ->
           if model.changed then
@@ -338,7 +337,7 @@ update msg ({objects, workingTree, status} as model) =
         SaveAndNew ->
           let
             sendSaveAnd m =
-              sendOut ( SaveAnd "New" m.filepath ( statusToValue m.status, Objects.toValue m.objects ) )
+              ( m, sendOut ( SaveAnd "New" m.filepath ( statusToValue m.status, Objects.toValue m.objects ) ) )
           in
           model
             |> saveCardIfEditing
@@ -774,6 +773,67 @@ activateNoCmds id model =
 
       Nothing ->
         model
+
+
+activateFold : String -> Model -> ( Model, Cmd Msg )
+activateFold id model =
+  let vs = model.viewState in
+  if id == "0" then
+    model ! [ ]
+  else
+    let
+      activeTree_ = getTree id model.workingTree.tree
+
+      newPast =
+        if (id == vs.active) then
+          vs.activePast
+        else
+          vs.active :: vs.activePast |> List.take 40
+    in
+    case activeTree_ of
+      Just activeTree ->
+        let
+          desc =
+            activeTree
+              |> getDescendants
+              |> List.map .id
+
+          anc =
+            getAncestors model.workingTree.tree activeTree []
+              |> List.map .id
+
+          flatCols =
+            model.workingTree.columns
+              |> List.map (\c -> List.map (\g -> List.map .id g) c)
+              |> List.map List.concat
+
+          allIds =
+            anc
+            ++ [id]
+            ++ desc
+        in
+        { model
+          | viewState =
+              { vs
+                | active = id
+                , activePast = newPast
+                , activeFuture = []
+                , descendants = desc
+              }
+        }
+          ! [ sendOut
+              ( ActivateCards
+                ( id
+                , getDepth 0 model.workingTree.tree id
+                , centerlineIds flatCols allIds newPast
+                , model.filepath
+                )
+              )
+            ]
+
+      Nothing ->
+        model ! [ ]
+
 
 
 activateCmds : String -> Model -> Cmd Msg
@@ -1520,13 +1580,17 @@ subscriptions model =
 
 -- HELPERS
 
-(*>) : model -> List ( model -> Cmd msg ) -> ( model, Cmd msg )
+(*>) : model -> List ( model -> ( model, Cmd msg ) ) -> ( model, Cmd msg )
 (*>) model functions =
-  ( model
-  , functions -- List ( model -> Cmd msg )
-      |> List.map (\f -> f model) -- List (Cmd msg)
-      |> Cmd.batch
-  )
+  let
+    foldFunction : (model -> ( model, Cmd msg )) -> (model, Cmd msg) -> ( model, Cmd msg )
+    foldFunction action (prevModel, prevCmd) =
+      let
+        (newModel, newCmd) = prevModel |> action
+      in
+      ( newModel, Cmd.batch [ prevCmd, newCmd ] )
+  in
+  List.foldl foldFunction (model, Cmd.none) functions
 
 infixl 0 *>
 
