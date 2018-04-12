@@ -85,8 +85,9 @@ init (isMac, trayIsOpen, videoModalIsOpen) =
     , shortcutTrayOpen = trayIsOpen
     , videoModalOpen = videoModalIsOpen
   }
-    ! [focus "1"]
-    |> activate "1"
+    *>[ activate "1"
+      , \m -> (m, focus "1")
+      ]
 
 
 
@@ -107,7 +108,7 @@ update msg ({objects, workingTree, status} as model) =
         |> saveCardIfEditing
         |> cancelCardNoCmds
         *>
-          [ activateFold id ]
+          [ activate id ]
 
     -- === Card Editing  ===
 
@@ -176,9 +177,9 @@ update msg ({objects, workingTree, status} as model) =
               | dragModel = newDragModel
               , draggedTree = Nothing
             }
-          } ! []
+          }
+            *> [ activate draggedTree.id ]
             |> moveOperation
-            |> activate draggedTree.id
 
         -- Failed drop
         ( Just (draggedTree, parentId, idx), Nothing, Nothing ) ->
@@ -187,9 +188,9 @@ update msg ({objects, workingTree, status} as model) =
               | dragModel = newDragModel
               , draggedTree = Nothing
             }
-          } ! []
+          }
+            *> [ activate draggedTree.id ]
             |> move draggedTree parentId idx
-            |> activate draggedTree.id
 
         _ ->
           { model | viewState = { vs | dragModel = newDragModel } } ! []
@@ -241,9 +242,8 @@ update msg ({objects, workingTree, status} as model) =
                 | workingTree = Trees.setTreeWithConflicts conflicts mTree model.workingTree
                 , status = newStatus
               }
-                ! []
+                *> [ activate id ]
                 |> cancelCard
-                |> activate id
 
         _ ->
           model ! []
@@ -373,10 +373,11 @@ update msg ({objects, workingTree, status} as model) =
                 , filepath = Just filepath
                 , changed = False
               }
-                ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) ]
+                *>[ activate lastActiveCard
+                  , \m -> (m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
+                  ]
                 |> maybeColumnsChanged model.workingTree.columns
                 |> changeTitle
-                |> activate lastActiveCard
 
             (Clean newHead, Just newTree) ->
               { model
@@ -388,10 +389,11 @@ update msg ({objects, workingTree, status} as model) =
                 , filepath = Just filepath
                 , changed = False
               }
-                ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) ]
+                *>[ activate lastActiveCard
+                  , \m -> (m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
+                  ]
                 |> maybeColumnsChanged model.workingTree.columns
                 |> changeTitle
-                |> activate lastActiveCard
 
             (MergeConflict mTree oldHead newHead [], Just newTree) ->
               { model
@@ -403,10 +405,11 @@ update msg ({objects, workingTree, status} as model) =
                 , filepath = Just filepath
                 , changed = False
               }
-                ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) ]
+                *>[ activate lastActiveCard
+                  , \m -> (m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
+                  ]
                 |> maybeColumnsChanged model.workingTree.columns
                 |> changeTitle
-                |> activate lastActiveCard
 
             (MergeConflict mTree oldHead newHead conflicts, Just newTree) ->
               { model
@@ -418,10 +421,11 @@ update msg ({objects, workingTree, status} as model) =
                 , filepath = Just filepath
                 , changed = False
               }
-                ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) ]
+                *>[ activate lastActiveCard
+                  , \m -> (m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
+                  ]
                 |> maybeColumnsChanged model.workingTree.columns
                 |> changeTitle
-                |> activate lastActiveCard
 
             _ ->
               let _ = Debug.log "failed to load json" (newStatus, newTree_, newObjects, json) in
@@ -439,8 +443,10 @@ update msg ({objects, workingTree, status} as model) =
                 , objects = newObjects
                 , status = newStatus
               }
-                ! [ sendOut ( UpdateCommits ( Objects.toValue newObjects , Just sha ) ) ]
-                |> activate vs.active
+                *>
+                  [ activate vs.active
+                  , \m -> ( m, sendOut ( UpdateCommits ( Objects.toValue newObjects , Just sha ) ) )
+                  ]
 
             (Clean oldHead, Clean newHead) ->
               if (oldHead /= newHead) then
@@ -449,8 +455,10 @@ update msg ({objects, workingTree, status} as model) =
                   , objects = newObjects
                   , status = newStatus
                 }
-                  ! [ sendOut ( UpdateCommits ( Objects.toValue newObjects , Just newHead ) ) ]
-                  |> activate vs.active
+                *>
+                  [ activate vs.active
+                  , \m -> ( m, sendOut ( UpdateCommits ( Objects.toValue newObjects , Just newHead ) ) )
+                  ]
               else
                 model ! []
 
@@ -464,9 +472,11 @@ update msg ({objects, workingTree, status} as model) =
                 , objects = newObjects
                 , status = newStatus
               }
-                ! [ sendOut ( UpdateCommits ( newObjects |> Objects.toValue, Just newHead ) ) ]
+                *>
+                  [ activate vs.active
+                  , \m -> ( m, sendOut ( UpdateCommits ( Objects.toValue newObjects , Just newHead ) ) )
+                  ]
                 |> addToHistory
-                |> activate vs.active
 
             _ ->
               let _ = Debug.log "failed to merge json" json in
@@ -485,11 +495,12 @@ update msg ({objects, workingTree, status} as model) =
                 , status = newStatus
                 , changed = True
               }
-                ! [ sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) )
-                  , sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) )
+                *>
+                  [ activate vs.active
+                  , \m -> ( m, sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) ) )
+                  , \m -> ( m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
                   ]
                   |> maybeColumnsChanged model.workingTree.columns
-                  |> activate vs.active
 
             Err err ->
               let _ = Debug.log "ImportJson error" err in
@@ -557,10 +568,10 @@ update msg ({objects, workingTree, status} as model) =
               model ! []
 
             "mod+enter" ->
-              model ! []
-                |> saveContentIfEditing
+              model
+                |> saveCardIfEditing
+                *> [ activate vs.active ]
                 |> cancelCard
-                |> activate vs.active
 
             "enter" ->
               normalMode model (openCard vs.active (getContent vs.active model.workingTree.tree))
@@ -775,8 +786,8 @@ activateNoCmds id model =
         model
 
 
-activateFold : String -> Model -> ( Model, Cmd Msg )
-activateFold id model =
+activate : String -> Model -> ( Model, Cmd Msg )
+activate id model =
   let vs = model.viewState in
   if id == "0" then
     model ! [ ]
@@ -834,126 +845,14 @@ activateFold id model =
       Nothing ->
         model ! [ ]
 
-
-
-activateCmds : String -> Model -> Cmd Msg
-activateCmds id model =
-  let vs = model.viewState in
-  if id == "0" then
-    Cmd.none
-  else
-    let
-      activeTree_ = getTree id model.workingTree.tree
-      newPast =
-        if (id == vs.active) then
-          vs.activePast
-        else
-          vs.active :: vs.activePast |> List.take 40
-    in
-    case activeTree_ of
-      Just activeTree ->
-        let
-          desc =
-            activeTree
-              |> getDescendants
-              |> List.map .id
-
-          anc =
-            getAncestors model.workingTree.tree activeTree []
-              |> List.map .id
-
-          flatCols =
-            model.workingTree.columns
-              |> List.map (\c -> List.map (\g -> List.map .id g) c)
-              |> List.map List.concat
-
-          allIds =
-            anc
-            ++ [id]
-            ++ desc
-        in
-        sendOut
-          ( ActivateCards
-            ( id
-            , getDepth 0 model.workingTree.tree id
-            , centerlineIds flatCols allIds newPast
-            , model.filepath
-            )
-          )
-
-      Nothing ->
-        Cmd.none
-
-
-activate : String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-activate id (model, prevCmd) =
-  let vs = model.viewState in
-  if id == "0" then
-    model ! [ prevCmd ]
-  else
-    let
-      activeTree_ = getTree id model.workingTree.tree
-      newPast =
-        if (id == vs.active) then
-          vs.activePast
-        else
-          vs.active :: vs.activePast |> List.take 40
-    in
-    case activeTree_ of
-      Just activeTree ->
-        let
-          desc =
-            activeTree
-              |> getDescendants
-              |> List.map .id
-
-          anc =
-            getAncestors model.workingTree.tree activeTree []
-              |> List.map .id
-
-          flatCols =
-            model.workingTree.columns
-              |> List.map (\c -> List.map (\g -> List.map .id g) c)
-              |> List.map List.concat
-
-          allIds =
-            anc
-            ++ [id]
-            ++ desc
-        in
-        { model
-          | viewState =
-              { vs
-                | active = id
-                , activePast = newPast
-                , activeFuture = []
-                , descendants = desc
-              }
-        }
-          ! [ prevCmd
-            , sendOut
-              ( ActivateCards
-                ( id
-                , getDepth 0 model.workingTree.tree id
-                , centerlineIds flatCols allIds newPast
-                , model.filepath
-                )
-              )
-            ]
-            |> sendCollabState (CollabState model.uid (Active id) "")
-
-      Nothing ->
-        model ! [ prevCmd ]
-
-
 goLeft : String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 goLeft id (model, prevCmd) =
   let
     targetId =
       getParent id model.workingTree.tree ? defaultTree |> .id
   in
-  model ! [prevCmd]
-    |> activate targetId
+  model
+    *> [ activate targetId ]
 
 
 goDown : String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -964,8 +863,8 @@ goDown id (model, prevCmd) =
         Nothing -> id
         Just ntree -> ntree.id
   in
-  model ! [prevCmd]
-    |> activate targetId
+  model
+    *> [ activate targetId ]
 
 
 goUp : String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -976,8 +875,8 @@ goUp id (model, prevCmd) =
         Nothing -> id
         Just ntree -> ntree.id
   in
-  model ! [prevCmd]
-    |> activate targetId
+  model
+    *> [ activate targetId ]
 
 
 goRight : String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -1011,8 +910,8 @@ goRight id (model, prevCmd) =
       if List.length childrenIds == 0 then
         model ! [prevCmd]
       else
-        model ! [prevCmd]
-          |> activate prevActiveOfChildren
+        model
+          *> [ activate prevActiveOfChildren ]
 
 
 -- === Card Editing  ===
@@ -1136,9 +1035,8 @@ deleteCard id (model, prevCmd) =
     { model
       | workingTree = Trees.update (Trees.Rmv id) model.workingTree
     }
-      ! [prevCmd]
+      *> [ activate nextToActivate ]
       |> maybeColumnsChanged model.workingTree.columns
-      |> activate nextToActivate
       |> addToHistory
 
 
@@ -1185,10 +1083,9 @@ insert pid pos (model, prevCmd) =
   { model
     | workingTree = Trees.update (Trees.Ins newId "" pid pos) model.workingTree
   }
-    ! [prevCmd]
+    *> [ activate newId ]
     |> maybeColumnsChanged model.workingTree.columns
     |> openCard newId ""
-    |> activate newId
 
 
 insertRelative : String -> Int -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -1247,9 +1144,8 @@ move subtree pid pos (model, prevCmd) =
   { model
     | workingTree = Trees.update (Trees.Mov subtree pid pos) model.workingTree
   }
-    ! [prevCmd]
+    *> [ activate subtree.id ]
     |> maybeColumnsChanged model.workingTree.columns
-    |> activate subtree.id
     |> addToHistory
 
 
