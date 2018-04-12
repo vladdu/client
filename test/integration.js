@@ -180,7 +180,8 @@ describe('Close Confirmations', function () { // Close Without Saving
     })
 
     describe('New', function () {
-      beforeEach(function() {
+      beforeEach(async function() {
+        await client.windowByIndex(0)
         robot.keyTap('n', 'control')
       })
 
@@ -197,12 +198,13 @@ describe('Close Confirmations', function () { // Close Without Saving
     })
 
     describe('Open', function() {
-      beforeEach(function() {
+      beforeEach(async function() {
+        await client.windowByIndex(0)
         robot.keyTap('o', 'control')
       })
 
       it('should discard the changes', function() {
-        // TODO: add a test file with know content
+        // TODO: add a test file with known content
         //       and then check to see that that content is present
         let checkTextarea = async function() {
           await client.waitForExist('#card-edit-1', 500, true)
@@ -211,7 +213,6 @@ describe('Close Confirmations', function () { // Close Without Saving
       })
 
       it('should set the title based on loaded file', async function() {
-        await client.pause(500)
         let windowTitle = await app.browserWindow.getTitle()
         expect(windowTitle).to.equal(`${path.basename(filepath)} - Gingko`)
       })
@@ -256,7 +257,8 @@ describe('Close Confirmations', function () { // Close Without Saving
     })
 
     describe('New', function () {
-      beforeEach(function() {
+      beforeEach(async function() {
+        await client.windowByIndex(0)
         robot.keyTap('n', 'control')
       })
 
@@ -273,8 +275,9 @@ describe('Close Confirmations', function () { // Close Without Saving
     })
 
     describe('Open', function () {
-      beforeEach(function() {
-        robot.keyTap('n', 'control')
+      beforeEach(async function() {
+        await client.windowByIndex(0)
+        robot.keyTap('o', 'control')
       })
 
       it('should not discard the changes', async function() {
