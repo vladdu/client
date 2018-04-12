@@ -106,7 +106,6 @@ update msg ({objects, workingTree, status} as model) =
     Activate id ->
       model
         |> saveCardIfEditing
-        |> cancelCardNoCmds
         *>
           [ activate id ]
 
@@ -242,8 +241,8 @@ update msg ({objects, workingTree, status} as model) =
                 | workingTree = Trees.setTreeWithConflicts conflicts mTree model.workingTree
                 , status = newStatus
               }
-                *> [ activate id ]
                 |> cancelCard
+                *> [ activate id ]
 
         _ ->
           model ! []
@@ -328,8 +327,7 @@ update msg ({objects, workingTree, status} as model) =
             model ! [ sendOut Exit ]
 
         CancelCardConfirmed ->
-          model ! []
-            |> cancelCard
+          ( model |> cancelCard ) ! []
 
         New ->
           actionNew model
@@ -571,7 +569,6 @@ update msg ({objects, workingTree, status} as model) =
               model
                 |> saveCardIfEditing
                 *> [ activate vs.active ]
-                |> cancelCard
 
             "enter" ->
               normalMode model (openCard vs.active (getContent vs.active model.workingTree.tree))
@@ -1040,23 +1037,13 @@ deleteCard id (model, prevCmd) =
       |> addToHistory
 
 
-cancelCardNoCmds : Model -> Model
-cancelCardNoCmds model =
+cancelCard : Model -> Model
+cancelCard model =
   let vs = model.viewState in
   { model
     | viewState = { vs | editing = Nothing }
     , field = ""
   }
-
-
-cancelCard : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-cancelCard (model, prevCmd) =
-  let vs = model.viewState in
-  { model
-    | viewState = { vs | editing = Nothing }
-  }
-    ! [prevCmd]
-    |> sendCollabState (CollabState model.uid (Active vs.active) "")
 
 
 intentCancelCard : Model -> ( Model, Cmd Msg )
