@@ -164,7 +164,7 @@ const update = (msg, data) => {
 
         if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
           var filepathToLoad = filepathArray[0]
-          loadFile(filepathToLoad)
+          importFile(filepathToLoad)
         }
       }
 
