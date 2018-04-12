@@ -37,7 +37,6 @@ window.Elm = require('../elm/Main')
 /* === Global Variables === */
 
 var currentFile = null
-var changed = false
 var field = null
 var editing = null
 var lastCenterline = null
@@ -180,7 +179,6 @@ const update = (msg, data) => {
             case "NewFromEditMode":
               await clearDb()
               document.title = "Untitled Tree - Gingko"
-              changed = false
               toElm("New", null)
               break
 
@@ -191,7 +189,6 @@ const update = (msg, data) => {
               if(Array.isArray(filepathArray) && filepathArray.length >= 0) {
                 var filepathToLoad = filepathArray[0]
                 loadFile(filepathToLoad)
-                changed = false
               }
               break;
 
@@ -206,7 +203,6 @@ const update = (msg, data) => {
             await save(savePath)
             await clearDb()
             document.title = "Untitled Tree - Gingko"
-            changed = false
             toElm("New", null)
           } else if (data.action == "NewFromEditMode") {
             toElm("SaveAndNew", null)
@@ -896,11 +892,8 @@ window.onresize = () => {
 
 
 const editingInputHandler = function(ev) {
-  if (!changed) {
-    changed = true
-    toElm('Changed', true)
-  }
   toElm('FieldChanged', ev.target.value)
+  document.title = document.title.startsWith('*') ? document.title : '*' + document.title
   collab.field = ev.target.value
   socket.emit('collab', collab)
 }

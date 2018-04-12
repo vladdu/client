@@ -516,7 +516,11 @@ update msg ({objects, workingTree, status} as model) =
         -- === DOM ===
 
         FieldChanged str ->
-          { model | field = str } ! []
+          { model
+            | field = str
+            , changed = True
+          }
+            ! []
 
         -- === UI ===
 
