@@ -116,8 +116,7 @@ update msg ({objects, workingTree, status} as model) =
         |> openCard id str
 
     DeleteCard id ->
-      model ! []
-        |> deleteCard id
+      model *> [ deleteCard id ]
 
     -- === Card Insertion  ===
 
@@ -574,7 +573,7 @@ update msg ({objects, workingTree, status} as model) =
               normalMode model (openCard vs.active (getContent vs.active model.workingTree.tree))
 
             "mod+backspace" ->
-              normalMode model (deleteCard vs.active)
+              normalModeFold model ( update ( DeleteCard vs.active ) )
 
             "esc" ->
               model |> intentCancelCard
@@ -974,26 +973,8 @@ openCard id str (model, prevCmd) =
       |> sendCollabState (CollabState model.uid (Editing id) str)
 
 
-deleteCardNoCmds : String -> Model -> Model
-deleteCardNoCmds id model =
-  let
-    vs = model.viewState
-
-    isLocked =
-      vs.collaborators
-        |> List.filter (\c -> c.mode == Editing id)
-        |> (not << List.isEmpty)
-  in
-  if isLocked then
-    model
-  else
-    { model
-      | workingTree = Trees.update (Trees.Rmv id) model.workingTree
-    }
-
-
-deleteCard : String -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-deleteCard id (model, prevCmd) =
+deleteCard : String -> Model -> ( Model, Cmd Msg )
+deleteCard id model =
   let
     vs = model.viewState
 
@@ -1503,3 +1484,11 @@ normalMode : Model -> ( (Model, Cmd Msg) -> (Model, Cmd Msg) ) -> (Model, Cmd Ms
 normalMode model operation =
   model ! []
     |> if (model.viewState.editing == Nothing) then operation else identity
+
+
+normalModeFold : Model -> ( Model -> (Model, Cmd Msg) ) -> (Model, Cmd Msg)
+normalModeFold model operation =
+  if (model.viewState.editing == Nothing) then
+    operation model
+  else
+    ( model , Cmd.none )
