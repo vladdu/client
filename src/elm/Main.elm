@@ -338,7 +338,6 @@ update msg ({objects, workingTree, status} as model) =
           in
           model
             |> saveCardIfEditing
-            |> commitToHistory
             *>
               [ sendSaveAnd ]
 
@@ -931,6 +930,7 @@ saveCardIfEditing model =
 
     Nothing ->
       model
+        |> commitToHistory
 
 
 saveContentIfEditing : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
