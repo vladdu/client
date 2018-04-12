@@ -47,7 +47,6 @@ type IncomingMsg
     | Merge Json.Value
     | ImportJSON Json.Value
     -- === File System ===
-    | Changed Bool
     | FileState (Maybe String) Bool
     -- === DOM ===
     | FieldChanged String

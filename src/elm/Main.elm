@@ -373,7 +373,6 @@ update msg ({objects, workingTree, status} as model) =
                   , \m -> (m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
                   ]
                 |> maybeColumnsChanged model.workingTree.columns
-                |> changeTitle
 
             (Clean newHead, Just newTree) ->
               { model
@@ -389,7 +388,6 @@ update msg ({objects, workingTree, status} as model) =
                   , \m -> (m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
                   ]
                 |> maybeColumnsChanged model.workingTree.columns
-                |> changeTitle
 
             (MergeConflict mTree oldHead newHead [], Just newTree) ->
               { model
@@ -405,7 +403,6 @@ update msg ({objects, workingTree, status} as model) =
                   , \m -> (m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
                   ]
                 |> maybeColumnsChanged model.workingTree.columns
-                |> changeTitle
 
             (MergeConflict mTree oldHead newHead conflicts, Just newTree) ->
               { model
@@ -421,7 +418,6 @@ update msg ({objects, workingTree, status} as model) =
                   , \m -> (m, sendOut ( UpdateCommits ( newObjects |> Objects.toValue, getHead newStatus ) ) )
                   ]
                 |> maybeColumnsChanged model.workingTree.columns
-                |> changeTitle
 
             _ ->
               let _ = Debug.log "failed to load json" (newStatus, newTree_, newObjects, json) in
@@ -504,20 +500,12 @@ update msg ({objects, workingTree, status} as model) =
 
         -- === File System ===
 
-        Changed changed ->
-          { model
-            | changed = changed
-          }
-            ! []
-            |> changeTitle
-
         FileState filepath_ changed ->
           { model
             | filepath = filepath_
             , changed = changed
           }
             ! []
-            |> changeTitle
 
         -- === DOM ===
 
@@ -1249,7 +1237,6 @@ addToHistory ({workingTree} as model, prevCmd) =
           , sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) )
           , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
           ]
-          |> changeTitle
 
     Clean oldHead ->
       let
@@ -1265,7 +1252,6 @@ addToHistory ({workingTree} as model, prevCmd) =
           , sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) )
           , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
           ]
-          |> changeTitle
 
     MergeConflict _ oldHead newHead conflicts ->
       if (List.isEmpty conflicts || (conflicts |> List.filter (not << .resolved) |> List.isEmpty)) then
@@ -1282,7 +1268,6 @@ addToHistory ({workingTree} as model, prevCmd) =
             , sendOut ( SaveToDB ( statusToValue newStatus , Objects.toValue newObjects ) )
             , sendOut ( UpdateCommits ( Objects.toValue newObjects , getHead newStatus ) )
             ]
-            |> changeTitle
       else
         model
           ! [ prevCmd, sendOut ( SaveLocal ( model.workingTree.tree ) ) ]
@@ -1359,11 +1344,6 @@ actionImport model =
 actionExit : Model -> ( Model, Cmd Msg )
 actionExit model =
   model ! [ sendOut Exit ]
-
-
-changeTitle : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-changeTitle (model, prevCmd) =
-  model ! [ prevCmd, sendOut ( ChangeTitle model.filepath model.changed ) ]
 
 
 sendCollabState : CollabState -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )

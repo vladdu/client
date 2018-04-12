@@ -58,7 +58,6 @@ userStore.getWithDefault = function (key, def) {
 
 const mock = require('../../test/mocks.js')
 if(process.env.RUNNING_IN_SPECTRON) {
-  console.log('in mock branch')
   mock(dialog
       , process.env.DIALOG_CHOICE
       , process.env.DIALOG_SAVE_PATH
@@ -205,6 +204,7 @@ const update = (msg, data) => {
             document.title = "Untitled Tree - Gingko"
             toElm("New", null)
           } else if (data.action == "NewFromEditMode") {
+            document.title = "Untitled Tree - Gingko"
             toElm("SaveAndNew", null)
           }
         }
@@ -458,6 +458,7 @@ const load = function(filepath, headOverride){
         }
 
         let toSend = [filepath, [status, { commits: commits, treeObjects: trees, refs: refs}], getLastActive(filepath)];
+        document.title = `${path.basename(filepath)} - Gingko`
         toElm("Open", toSend);
       }).catch(function (err) {
         console.log(err)

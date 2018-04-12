@@ -11,7 +11,6 @@ import Json.Decode as Json exposing (decodeValue)
 type OutgoingMsg
     -- === Dialogs, Menus, Window State ===
     = Alert String
-    | ChangeTitle (Maybe String) Bool
     | OpenDialog (Maybe String)
     | ImportDialog (Maybe String)
     | ConfirmClose String (Maybe String) (Json.Value, Json.Value)
@@ -61,9 +60,6 @@ sendOut info =
 
     Alert str ->
       dataToSend ( string str )
-
-    ChangeTitle filepath_ changed ->
-      dataToSend ( tupleToValue ( maybeToValue string ) bool ( filepath_, changed ) )
 
     OpenDialog filepath_ ->
       dataToSend ( maybeToValue string filepath_ )
@@ -249,14 +245,6 @@ receiveMsg tagger onError =
             case decodeValue Json.string outsideInfo.data of
               Ok rev ->
                 tagger <| SetHeadRev rev
-
-              Err e ->
-                onError e
-
-          "Changed" ->
-            case decodeValue Json.bool outsideInfo.data of
-              Ok isChanged ->
-                tagger <| Changed isChanged
 
               Err e ->
                 onError e
