@@ -104,7 +104,7 @@ update msg ({objects, workingTree, status} as model) =
 
     Activate id ->
       model
-        |> saveCardToTree
+        |> saveCardIfEditing
         |> cancelCardNoCmds
         |> activateNoCmds id
         *>
@@ -296,7 +296,7 @@ update msg ({objects, workingTree, status} as model) =
               case exportSettings.selection of
                 All ->
                   model
-                    |> saveCardToTree
+                    |> saveCardIfEditing
                     *>
                       [ \m -> sendOut ( ExportJSON m.workingTree.tree ) ]
 
@@ -306,19 +306,19 @@ update msg ({objects, workingTree, status} as model) =
               case exportSettings.selection of
                 All ->
                   model
-                    |> saveCardToTree
+                    |> saveCardIfEditing
                     *>
                       [ \m -> sendOut ( ExportTXT False m.workingTree.tree ) ]
 
                 CurrentSubtree ->
                   model
-                    |> saveCardToTree
+                    |> saveCardIfEditing
                     *>
                       [ \m -> sendOut ( ExportTXT True m.workingTree.tree ) ]
 
                 ColumnNumber col ->
                   model
-                    |> saveCardToTree
+                    |> saveCardIfEditing
                     *>
                       [ \m -> sendOut ( ExportTXTColumn col m.workingTree.tree ) ]
 
@@ -341,7 +341,7 @@ update msg ({objects, workingTree, status} as model) =
               sendOut ( SaveAnd "New" m.filepath ( statusToValue m.status, Objects.toValue m.objects ) )
           in
           model
-            |> saveCardToTree
+            |> saveCardIfEditing
             |> commitToHistory
             *>
               [ sendSaveAnd ]
@@ -957,8 +957,8 @@ goRight id (model, prevCmd) =
 
 -- === Card Editing  ===
 
-saveCardToTree : Model -> Model
-saveCardToTree model =
+saveCardIfEditing : Model -> Model
+saveCardIfEditing model =
   case model.viewState.editing of
     Just id ->
       let
