@@ -4,9 +4,10 @@ import Coders exposing (treeToMarkdownString)
 import Dict
 import Diff exposing (..)
 import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html.Attributes as A exposing (..)
 import Html.Events exposing (onClick, onInput)
 import InlineHover exposing (hover)
+import List.Extra exposing ((!!))
 import Objects
 import Octicons as Icon exposing (defaultOptions)
 import Regex exposing (Regex, regex, replace)
@@ -305,14 +306,24 @@ viewHistory objects =
             Dict.get "heads/master" objects.refs
                 |> Maybe.map .ancestors
                 |> Maybe.withDefault []
+
+        checkoutCommit : String -> Msg
+        checkoutCommit idxStr =
+            case String.toInt idxStr of
+                Ok idx ->
+                    case ancestors !! idx of
+                        Just commit ->
+                            CheckoutCommit commit
+
+                        Nothing ->
+                            NoOp
+
+                Err _ ->
+                    NoOp
     in
     div [ id "history" ]
-        (List.map viewCommit ancestors)
-
-
-viewCommit : String -> Html Msg
-viewCommit commitId =
-    li [ onClick (CheckoutCommit commitId) ] [ text commitId ]
+        [ input [ type_ "range", A.min "0", A.max (ancestors |> List.length |> toString), onInput checkoutCommit ] []
+        ]
 
 
 viewConflict : Conflict -> Html Msg
