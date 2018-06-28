@@ -18,6 +18,7 @@ type Msg
       -- === Card Moving  ===
     | DragDropMsg (DragDrop.Msg String DropId)
       -- === History ===
+    | CheckoutCommit String
     | Undo
     | Redo
     | Sync
@@ -74,7 +75,6 @@ type
     | FieldChanged String
     | TextSelected Bool
       -- === UI ===
-    | CheckoutCommit String
     | ViewVideos
     | Keyboard String Int
       -- === Misc ===

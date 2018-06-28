@@ -1,11 +1,13 @@
-module UI exposing (countWords, viewConflict, viewFooter, viewVideo)
+module UI exposing (countWords, viewConflict, viewFooter, viewHistory, viewVideo)
 
 import Coders exposing (treeToMarkdownString)
+import Dict
 import Diff exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import InlineHover exposing (hover)
+import Objects
 import Octicons as Icon exposing (defaultOptions)
 import Regex exposing (Regex, regex, replace)
 import TreeUtils exposing (..)
@@ -294,6 +296,23 @@ toWordsString num =
 
         n ->
             toString n ++ " words"
+
+
+viewHistory : Objects.Model -> Html Msg
+viewHistory objects =
+    let
+        ancestors =
+            Dict.get "heads/master" objects.refs
+                |> Maybe.map .ancestors
+                |> Maybe.withDefault []
+    in
+    div [ id "history" ]
+        (List.map viewCommit ancestors)
+
+
+viewCommit : String -> Html Msg
+viewCommit commitId =
+    li [ onClick (CheckoutCommit commitId) ] [ text commitId ]
 
 
 viewConflict : Conflict -> Html Msg

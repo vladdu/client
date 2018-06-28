@@ -195,14 +195,6 @@ receiveMsg tagger onError =
                             onError e
 
                 -- === UI ===
-                "CheckoutCommit" ->
-                    case decodeValue Json.Decode.string outsideInfo.data of
-                        Ok commitSha ->
-                            tagger <| CheckoutCommit commitSha
-
-                        Err e ->
-                            onError e
-
                 "ViewVideos" ->
                     tagger <| ViewVideos
 

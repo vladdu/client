@@ -15,7 +15,7 @@ import Task
 import TreeUtils exposing (..)
 import Trees exposing (..)
 import Types exposing (..)
-import UI exposing (countWords, viewConflict, viewFooter, viewVideo)
+import UI exposing (countWords, viewConflict, viewFooter, viewHistory, viewVideo)
 
 
 main : Program ( Json.Value, InitModel ) Model Msg
@@ -239,6 +239,30 @@ update msg ({ objects, workingTree, status } as model) =
                     { model | viewState = { vs | dragModel = newDragModel } } ! []
 
         -- === History ===
+        CheckoutCommit commitSha ->
+            case status of
+                MergeConflict _ _ _ _ ->
+                    model ! []
+
+                _ ->
+                    let
+                        ( newStatus, newTree_, newModel ) =
+                            Objects.update (Objects.Checkout commitSha) objects
+                    in
+                    case newTree_ of
+                        Just newTree ->
+                            { model
+                                | workingTree = Trees.setTree newTree model.workingTree
+                                , status = newStatus
+                            }
+                                ! [ sendOut (UpdateCommits ( Objects.toValue objects, getHead newStatus )) ]
+                                |> maybeColumnsChanged model.workingTree.columns
+
+                        Nothing ->
+                            model
+                                ! []
+                                |> Debug.log "failed to load commit"
+
         Undo ->
             model ! []
 
@@ -481,30 +505,6 @@ update msg ({ objects, workingTree, status } as model) =
                     { model | isTextSelected = isSel } ! []
 
                 -- === UI ===
-                CheckoutCommit commitSha ->
-                    case status of
-                        MergeConflict _ _ _ _ ->
-                            model ! []
-
-                        _ ->
-                            let
-                                ( newStatus, newTree_, newModel ) =
-                                    Objects.update (Objects.Checkout commitSha) objects
-                            in
-                            case newTree_ of
-                                Just newTree ->
-                                    { model
-                                        | workingTree = Trees.setTree newTree model.workingTree
-                                        , status = newStatus
-                                    }
-                                        ! [ sendOut (UpdateCommits ( Objects.toValue objects, getHead newStatus )) ]
-                                        |> maybeColumnsChanged model.workingTree.columns
-
-                                Nothing ->
-                                    model
-                                        ! []
-                                        |> Debug.log "failed to load commit"
-
                 ViewVideos ->
                     model
                         ! []
@@ -1475,6 +1475,7 @@ repeating-linear-gradient(-45deg
             div
                 [ id "app-root" ]
                 [ lazy2 Trees.view model.viewState model.workingTree
+                , viewHistory model.objects
                 , viewFooter model
                 , viewVideo model
                 ]
