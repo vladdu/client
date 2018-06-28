@@ -306,8 +306,11 @@ viewHistory objects =
             Dict.get "heads/master" objects.refs
                 |> Maybe.map .ancestors
                 |> Maybe.withDefault []
+                |> List.reverse
 
-        checkoutCommit : String -> Msg
+        maxIdx =
+            ancestors |> List.length |> (\x -> x - 1) |> toString
+
         checkoutCommit idxStr =
             case String.toInt idxStr of
                 Ok idx ->
@@ -322,7 +325,7 @@ viewHistory objects =
                     NoOp
     in
     div [ id "history" ]
-        [ input [ type_ "range", A.min "0", A.max (ancestors |> List.length |> toString), onInput checkoutCommit ] []
+        [ input [ type_ "range", A.min "0", A.max maxIdx, defaultValue maxIdx, step "1", onInput checkoutCommit ] []
         ]
 
 

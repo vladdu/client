@@ -251,12 +251,34 @@ update msg ({ objects, workingTree, status } as model) =
                     in
                     case newTree_ of
                         Just newTree ->
+                            let
+                                activateNextCard =
+                                    case getTree vs.active newTree of
+                                        Just tree ->
+                                            activate tree.id
+
+                                        Nothing ->
+                                            let
+                                                currentIds =
+                                                    newTree
+                                                        |> getDescendants
+                                                        |> List.map .id
+
+                                                nextId =
+                                                    vs.activePast
+                                                        |> List.filter (\ap -> List.member ap currentIds)
+                                                        |> List.head
+                                                        |> Maybe.withDefault (currentIds |> List.head |> Maybe.withDefault "0")
+                                            in
+                                            activate nextId
+                            in
                             { model
                                 | workingTree = Trees.setTree newTree model.workingTree
                                 , status = newStatus
                             }
                                 ! [ sendOut (UpdateCommits ( Objects.toValue objects, getHead newStatus )) ]
                                 |> maybeColumnsChanged model.workingTree.columns
+                                |> activateNextCard
 
                         Nothing ->
                             model
