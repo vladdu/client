@@ -6,7 +6,7 @@ import Json.Encode exposing (..)
 import Json.Encode.Extra exposing (maybe)
 import TreeUtils exposing (getColumn)
 import Types exposing (..)
-
+import Debug exposing (log)
 
 sendOut : OutgoingMsg -> Cmd msg
 sendOut info =
@@ -77,6 +77,14 @@ sendOut info =
             dataToSend
                 (object
                     [ ( "data", treeToMarkdown withRoot tree )
+                    , ( "filepath", maybe string path_ )
+                    ]
+                )
+
+        ExportHTML withRoot tree path_ ->
+            dataToSend
+                (object
+                    [ ( "data", treeToHTML withRoot tree )
                     , ( "filepath", maybe string path_ )
                     ]
                 )
@@ -169,7 +177,7 @@ receiveMsg tagger onError =
                 "IntentExport" ->
                     case decodeValue exportSettingsDecoder outsideInfo.data of
                         Ok exportSettings ->
-                            tagger <| IntentExport exportSettings
+                            tagger <| IntentExport (log "::" exportSettings)
 
                         Err e ->
                             onError e

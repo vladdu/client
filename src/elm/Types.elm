@@ -58,6 +58,7 @@ type
       -- === File System ===
     | ExportDOCX String (Maybe String)
     | ExportJSON Tree (Maybe String)
+    | ExportHTML Bool Tree (Maybe String)
     | ExportTXT Bool Tree (Maybe String)
     | ExportTXTColumn Int Tree (Maybe String)
       -- === DOM ===
@@ -111,6 +112,7 @@ type ExportFormat
     = DOCX
     | JSON
     | TXT
+    | HTML
 
 
 type ExportSelection

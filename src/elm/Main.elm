@@ -688,6 +688,28 @@ update msg ({ objects, workingTree, status } as model) =
                                         |> saveCardIfEditing
                                         |> (\( m, c ) -> m ! [ c, sendOut (ExportTXTColumn col m.workingTree.tree exportSettings.filepath) ])
 
+                        HTML ->
+                            case exportSettings.selection of
+                                All ->
+                                    model
+                                        ! []
+                                        |> saveCardIfEditing
+                                        |> (\( m, c ) -> m ! [ c, sendOut (ExportHTML False m.workingTree.tree exportSettings.filepath) ])
+
+                                CurrentSubtree ->
+                                    let
+                                        getCurrentSubtree m =
+                                            getTree vs.active m.workingTree.tree
+                                                |> Maybe.withDefault m.workingTree.tree
+                                    in
+                                    model
+                                        ! []
+                                        |> saveCardIfEditing
+                                        |> (\( m, c ) -> m ! [ c, sendOut (ExportHTML True (getCurrentSubtree m) exportSettings.filepath) ])
+                                ColumnNumber col ->
+                                    -- not happening 
+                                    model ! [ Cmd.none ]
+
                 CancelCardConfirmed ->
                     model
                         ! []

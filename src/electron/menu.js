@@ -103,9 +103,12 @@ function fileMenu (isDocument, isNew, isChanged, columnNumber, hasLastExport, re
       [ { type: "separator" }
       , { label: "Export as MS &Word"
         , submenu : exportMenu("docx", columnNumber)
-        }
-      , { label: "Export as &Text"
+      }
+        , { label: "Export as &Text"
         , submenu : exportMenu("txt", columnNumber)
+        }
+      , { label: "Export as &Html"
+        , submenu : exportMenu("html", columnNumber)
         }
       , { label: "Export as &JSON..."
         , click : function (item, focusedWindow) {

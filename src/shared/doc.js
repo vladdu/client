@@ -244,7 +244,16 @@ const update = (msg, data) => {
         }
       }
 
-    , 'ExportTXT': () => {
+      , 'ExportHTML': () => {
+        try {
+          exportHtml(data.data, data.filepath)
+        } catch (e) {
+          dialog.showMessageBox(errorAlert('Export Error', "Couldn't export.\nTry again.", e))
+          return;
+        }
+      }
+
+      , 'ExportTXT': () => {
         try {
           exportTxt(data.data, data.filepath)
         } catch (e) {
@@ -378,6 +387,9 @@ ipcRenderer.on("menu-export-docx-column", (e, msg) => intentExportToElm("docx", 
 ipcRenderer.on("menu-export-txt", () => intentExportToElm("txt", "all", null));
 ipcRenderer.on("menu-export-txt-current", () => intentExportToElm("txt", "current", null));
 ipcRenderer.on("menu-export-txt-column", (e, msg) => intentExportToElm("txt", {column: msg}, null));
+ipcRenderer.on("menu-export-html", () => intentExportToElm("html", "all", null));
+ipcRenderer.on("menu-export-html-current", () => intentExportToElm("html", "current", null));
+// ipcRenderer.on("menu-export-html-column", (e, msg) => intentExportToElm("html", {column: msg}, null));
 ipcRenderer.on("menu-export-json", () => intentExportToElm("json", "all", null));
 ipcRenderer.on("menu-export-repeat", () => intentExportToElm(_lastFormat, _lastSelection, _lastExportPath));
 ipcRenderer.on("menu-undo", () => toElm("Keyboard", ["mod+z", Date.now()]));
@@ -728,6 +740,53 @@ const exportTxt = (data, defaultPath) => {
           { title: 'Export TXT'
           , defaultPath: defaultPath ? defaultPath.replace('.gko', '') : path.join(app.getPath('documents'),"Untitled.txt")
           , filters:  [ {name: 'Text File', extensions: ['txt']}
+                      , {name: 'All Files', extensions: ['*']}
+                      ]
+          }
+
+
+        dialog.showSaveDialog(options, function(filepath){
+          if(!!filepath){
+            saveFile(filepath)
+          } else {
+            reject(new Error('no export path chosen'))
+            return;
+          }
+        })
+      }
+    }
+  )
+}
+
+const exportHtml = (data, defaultPath) => {
+  return new Promise(
+    (resolve, reject) => {
+      if (data && typeof data.replace === 'function') {
+        data = (process.platform === "win32") ? data.replace(/\n/g, '\r\n') : data;
+      } else {
+        reject(new Error('invalid data sent for export'))
+        return;
+      }
+
+      var saveFile = function(filepath) {
+        fs.writeFile(filepath, data, (err) => {
+          if (err) {
+            reject(new Error('export-txt writeFile failed'))
+            return;
+          }
+          _lastExportPath = filepath
+          ipcRenderer.send('app:last-export-set', filepath)
+          resolve(data)
+        })
+      }
+
+      if(!!defaultPath) {
+        saveFile(defaultPath)
+      } else {
+        var options =
+          { title: 'Export HTML'
+          , defaultPath: defaultPath ? defaultPath.replace('.gko', '') : path.join(app.getPath('documents'),"Untitled.html")
+          , filters:  [ {name: 'Text File', extensions: ['html']}
                       , {name: 'All Files', extensions: ['*']}
                       ]
           }

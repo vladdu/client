@@ -4,7 +4,7 @@ import Json.Decode as Json exposing (..)
 import Json.Encode as Enc
 import Trees
 import Types exposing (..)
-
+import Debug exposing (..)
 
 -- Tree
 
@@ -284,7 +284,10 @@ exportSettingsDecoder =
                     JSON
 
                 "txt" ->
-                    TXT
+                    log s TXT
+
+                "html" ->
+                    log s HTML
 
                 "docx" ->
                     DOCX
@@ -379,6 +382,41 @@ treeToMarkdownRecurse tree =
                 ++ List.map treeToMarkdownRecurse c
                 |> String.join "\n\n"
 
+treeToHTML : Bool -> Tree -> Enc.Value
+treeToHTML withRoot tree =
+    tree
+        |> treeToHTMLString withRoot
+        |> Enc.string
+
+
+treeToHTMLString : Bool -> Tree -> String
+treeToHTMLString withRoot tree =
+    let
+        contentList =
+            case tree.children of
+                Children c ->
+                    List.map treeToHTMLRecurse c
+    in
+    if withRoot then
+        [ "<span>", tree.content, "</span>", "<ul>" ]
+            ++ contentList
+            ++ [ "</ul>"]
+            |> String.join "\n"
+    else
+        [ "<ul>" ]
+            ++ contentList
+            ++ [ "</ul>"]
+            |> String.join "\n"
+
+
+treeToHTMLRecurse : Tree -> String
+treeToHTMLRecurse tree =
+    case tree.children of
+        Children c ->
+            [ "<li>\n<span>", tree.content, "</span>\n<ul>" ]
+                ++ List.map treeToHTMLRecurse c
+                ++ [ "</ul>\n</li>" ]
+                |> String.join "\n"
 
 
 -- HELPERS
